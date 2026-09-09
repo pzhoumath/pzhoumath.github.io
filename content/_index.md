@@ -1,6 +1,6 @@
 ---
 title: "Peng Zhou"
-photo: "/images/profile.jpg"
+photo: "images/profile.jpg"
 photo_alt: "Peng Zhou"
 ---
 

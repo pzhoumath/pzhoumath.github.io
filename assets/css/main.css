@@ -99,6 +99,17 @@ a:hover {
   font-size: 0.9rem;
 }
 
+/* Home photo */
+
+.home-photo {
+  display: block;
+  width: 128px;
+  height: 128px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin: 0 0 1.75rem;
+}
+
 /* Headings & prose */
 
 h1, h2, h3 {

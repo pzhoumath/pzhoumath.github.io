@@ -12,4 +12,6 @@ See [Research](/research/) for an overview of what I work on, [Blog](/blog/)
 for shorter, informal notes, and [Publications](/publications/) for a full
 list of papers.
 
+I also help co-organize the [Berkeley String-Math Seminar](https://berkeley-stringmath.github.io/).
+
 Contact: [pzhou.math@gmail.com](mailto:pzhou.math@gmail.com)

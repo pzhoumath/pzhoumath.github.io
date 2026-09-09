@@ -11,11 +11,11 @@
   {{ $year := 0 }}
   <div class="pub-list">
     {{ range $pubs }}
-    {{ if ne .year $year }}
+    {{ if ne .arxiv_year $year }}
       {{ if ne $year 0 }}</ul>{{ end }}
-      <h2 class="pub-year">{{ if .year }}{{ .year }}{{ else }}Undated{{ end }}</h2>
+      <h2 class="pub-year">{{ if .arxiv_year }}{{ .arxiv_year }}{{ else }}Undated{{ end }}</h2>
       <ul class="plain-list pub-year-group">
-      {{ $year = .year }}
+      {{ $year = .arxiv_year }}
     {{ end }}
     <li class="pub-entry">
       <span class="pub-title">{{ .title }}</span><br>

@@ -157,6 +157,8 @@ def resolve_venue_and_arxiv(fields: dict):
 def to_record(entry: dict) -> dict:
     fields = entry["fields"]
     venue, arxiv_id = resolve_venue_and_arxiv(fields)
+    arxiv_match = ARXIV_RE.fullmatch(arxiv_id)
+    arxiv_year = 2000 + int(arxiv_id[:2]) if arxiv_match else None
     year_raw = fields.get("year", "")
     try:
         year = int(re.sub(r"\D", "", year_raw)) if year_raw else None
@@ -175,6 +177,7 @@ def to_record(entry: dict) -> dict:
         "year": year,
         "venue": venue,
         "arxiv": arxiv_id,
+        "arxiv_year": arxiv_year,
         "doi": fields.get("doi", ""),
         "url": fields.get("url", ""),
         "pdf": fields.get("pdf", ""),
@@ -190,7 +193,12 @@ def main() -> int:
     text = strip_comments(BIB_PATH.read_text(encoding="utf-8"))
     entries = parse_entries(text)
     records = [to_record(e) for e in entries]
-    records.sort(key=lambda r: (r["year"] is None, -(r["year"] or 0), r["title"]))
+    records.sort(
+        key=lambda r: tuple(int(part) for part in r["arxiv"].split("."))
+        if ARXIV_RE.fullmatch(r["arxiv"])
+        else (-1, -1),
+        reverse=True,
+    )
 
     JSON_PATH.parent.mkdir(parents=True, exist_ok=True)
     JSON_PATH.write_text(

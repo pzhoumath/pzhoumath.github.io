@@ -1,0 +1,51 @@
+baseURL = "https://pzhoumath.github.io/"
+languageCode = "en-us"
+title = "Peng Zhou"
+copyright = "Peng Zhou"
+
+enableRobotsTXT = true
+enableGitInfo = false
+
+[params]
+  author = "Peng Zhou"
+  email = "pzhou.math@gmail.com"
+  description = "Research notes and publications in symplectic geometry and representation theory."
+
+[menu]
+  [[menu.main]]
+    name = "Home"
+    url = "/"
+    weight = 1
+  [[menu.main]]
+    name = "Research"
+    url = "/research/"
+    weight = 2
+  [[menu.main]]
+    name = "Blog"
+    url = "/blog/"
+    weight = 3
+  [[menu.main]]
+    name = "Publications"
+    url = "/publications/"
+    weight = 4
+
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.extensions]
+      [markup.goldmark.extensions.passthrough]
+        enable = true
+        [markup.goldmark.extensions.passthrough.delimiters]
+          block = [["\\[", "\\]"], ["$$", "$$"]]
+          inline = [["\\(", "\\)"], ["$", "$"]]
+    [markup.goldmark.renderer]
+      unsafe = false
+  [markup.tableOfContents]
+    startLevel = 2
+    endLevel = 3
+
+[outputs]
+  home = ["HTML", "RSS"]
+  section = ["HTML", "RSS"]
+
+[taxonomies]
+  tag = "tags"

@@ -1,0 +1,37 @@
+{{ define "main" }}
+<article class="page">
+  <h1>{{ .Title }}</h1>
+  {{ .Content }}
+
+  {{ $pubs := .Site.Data.publications }}
+  {{ if not $pubs }}
+  <p><em>No publications yet. Add entries to <code>bibliography/publications.bib</code> and run
+  <code>scripts/build_publications.py</code>.</em></p>
+  {{ else }}
+  {{ $year := 0 }}
+  <div class="pub-list">
+    {{ range $pubs }}
+    {{ if ne .year $year }}
+      {{ if ne $year 0 }}</ul>{{ end }}
+      <h2 class="pub-year">{{ if .year }}{{ .year }}{{ else }}Undated{{ end }}</h2>
+      <ul class="plain-list pub-year-group">
+      {{ $year = .year }}
+    {{ end }}
+    <li class="pub-entry">
+      <span class="pub-title">{{ .title }}</span><br>
+      <span class="pub-authors">{{ delimit .authors ", " }}</span>{{ if .venue }}, <span class="pub-venue">{{ .venue }}</span>{{ end }}
+      <span class="pub-links">
+        {{ if .arxiv }}<a href="https://arxiv.org/abs/{{ .arxiv }}">arXiv:{{ .arxiv }}</a>{{ end }}
+        {{ if .doi }}<a href="https://doi.org/{{ .doi }}">DOI</a>{{ end }}
+        {{ if .pdf }}<a href="{{ .pdf }}">PDF</a>{{ else if .url }}<a href="{{ .url }}">link</a>{{ end }}
+      </span>
+      {{ with .tags }}
+      <span class="post-tags">{{ range . }}<span class="tag">{{ . }}</span>{{ end }}</span>
+      {{ end }}
+    </li>
+    {{ end }}
+    </ul>
+  </div>
+  {{ end }}
+</article>
+{{ end }}

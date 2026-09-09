@@ -1,2 +1,5 @@
-_site/
-
+/public/
+/resources/
+/.hugo_build.lock
+/data/publications.json
+__pycache__/

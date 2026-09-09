@@ -1,5 +1,11 @@
 {{ define "main" }}
 <article class="page home">
+  {{ with .Params.photo }}
+  {{ with resources.Get . }}
+  {{ $thumb := .Fill "256x256 q82" }}
+  <img class="home-photo" src="{{ $thumb.RelPermalink }}" width="128" height="128" alt="{{ $.Params.photo_alt | default $.Site.Params.author }}">
+  {{ end }}
+  {{ end }}
   {{ .Content }}
 </article>
 {{ end }}

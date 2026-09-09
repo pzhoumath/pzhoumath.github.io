@@ -1,5 +1,7 @@
 ---
 title: "Peng Zhou"
+photo: "images/profile.jpg"
+photo_alt: "Peng Zhou"
 ---
 
 I work on symplectic geometry and its interactions with representation

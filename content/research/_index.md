@@ -2,6 +2,8 @@
 title: "Research"
 ---
 
+[Research statement (2025) — PDF, 7 pages](/files/research_statement_2025.pdf)
+
 ## Research statement
 
 My research lies at the interface of symplectic geometry, algebraic geometry,

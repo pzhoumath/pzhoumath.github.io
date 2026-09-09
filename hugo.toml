@@ -9,7 +9,7 @@ enableGitInfo = false
 [params]
   author = "Peng Zhou"
   email = "pzhou.math@gmail.com"
-  description = "Research notes and publications in symplectic geometry and representation theory."
+  description = "Research and publications in symplectic geometry and representation theory."
 
 [menu]
   [[menu.main]]
@@ -21,13 +21,9 @@ enableGitInfo = false
     url = "/research/"
     weight = 2
   [[menu.main]]
-    name = "Blog"
-    url = "/blog/"
-    weight = 3
-  [[menu.main]]
     name = "Publications"
     url = "/publications/"
-    weight = 4
+    weight = 3
 
 [markup]
   [markup.goldmark]

@@ -4,22 +4,24 @@ title: "Research"
 
 ## Research statement
 
-*(Placeholder — replace with your actual research statement.)*
+My research lies at the interface of symplectic geometry, algebraic geometry,
+and representation theory, with a central role played by Fukaya categories.
+I am particularly interested in geometric constructions of categorified
+quantum groups and link invariants. In this approach, decorated surfaces give
+rise to Fukaya categories whose symmetries encode braiding, creation and
+annihilation of defects, and quantum-group actions. The resulting geometry is
+designed to expose the cutting-and-gluing structure behind categorified
+representation theory and its relation to four-dimensional topological field
+theory.
 
-My research sits at the interface of symplectic geometry, algebraic
-geometry, and representation theory, broadly organized around
-**homological mirror symmetry** and its categorical incarnations. A
-recurring theme is passing between a symplectic (Fukaya-categorical) side
-and an algebraic (coherent-sheaf or representation-theoretic) side, and
-using structures on one side — braid group actions, categorification,
-singularities of moduli — to predict and prove structures on the other.
+A second theme of my work is homological mirror symmetry. I study equivalences
+between Fukaya categories and categories of coherent sheaves, especially for
+toric and hypertoric spaces, complete intersections, and spaces arising from
+geometric representation theory. These equivalences allow symplectic tools
+such as Lagrangian skeleta and Hamiltonian reduction to be compared with
+variation of GIT, windows, and categorical descent on the algebraic side.
 
-As a sample of the typesetting: the Fukaya category $\mathrm{Fuk}(X)$ of a
-symplectic manifold $X$ has objects Lagrangian submanifolds equipped with
-local systems, and morphisms given by Lagrangian Floer cochains,
-$$
-CF^*(L_0, L_1) = \bigoplus_{p \in L_0 \cap L_1} \Lambda \cdot p,
-$$
-with a differential counting pseudo-holomorphic strips.
-
-Below are short pages on some of the specific themes I work on.
+I also work on perverse schobers, which organize families of categories with
+singularities and monodromy. In the settings above, schobers provide a natural
+language for wall-crossing and braid-group actions, and help connect local
+categorical models to global geometric constructions.

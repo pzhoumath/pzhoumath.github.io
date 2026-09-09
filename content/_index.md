@@ -5,12 +5,11 @@ photo_alt: "Peng Zhou"
 ---
 
 I work on symplectic geometry and its interactions with representation
-theory, centered on homological mirror symmetry, Fukaya categories, and
+theory, centered on Fukaya categories, homological mirror symmetry, and
 categorified quantum groups.
 
-See [Research](/research/) for an overview of what I work on, [Blog](/blog/)
-for shorter, informal notes, and [Publications](/publications/) for a full
-list of papers.
+See [Research](/research/) for an overview of my work and
+[Publications](/publications/) for a full list of papers.
 
 I also help co-organize the [Berkeley String-Math Seminar](https://berkeley-stringmath.github.io/).
 

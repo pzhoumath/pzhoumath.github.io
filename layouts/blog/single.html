@@ -1,0 +1,13 @@
+{{ define "main" }}
+<article class="page post">
+  <h1>{{ .Title }}</h1>
+  <p class="post-meta">
+    <span class="post-date">{{ .Date.Format "January 2, 2006" }}</span>
+    {{ with .Params.tags }}
+    <span class="post-tags">{{ range . }}<span class="tag">{{ . }}</span>{{ end }}</span>
+    {{ end }}
+  </p>
+  {{ .Content }}
+  <p class="back-link"><a href="{{ "/blog/" | absURL }}">&larr; back to blog</a></p>
+</article>
+{{ end }}

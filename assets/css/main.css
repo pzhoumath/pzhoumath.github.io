@@ -1,0 +1,282 @@
+:root {
+  --bg: #ffffff;
+  --fg: #1a1a1a;
+  --fg-muted: #5a5a5a;
+  --accent: #8b2f2f;
+  --border: #e2e2e2;
+  --code-bg: #f5f4f2;
+  --max-width: 720px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #16161a;
+    --fg: #e8e6e3;
+    --fg-muted: #a3a09b;
+    --accent: #d98c8c;
+    --border: #313136;
+    --code-bg: #202024;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: Georgia, "Iowan Old Style", "Palatino Linotype", "URW Palladio L", serif;
+  font-size: 18px;
+  line-height: 1.65;
+  padding: 2.5rem 1.25rem 4rem;
+}
+
+main {
+  max-width: var(--max-width);
+  margin: 0 auto;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+
+a:hover {
+  border-bottom-color: currentColor;
+}
+
+/* Header */
+
+.site-header {
+  max-width: var(--max-width);
+  margin: 0 auto 3rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 1rem;
+}
+
+.site-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--fg);
+  border-bottom: none;
+}
+
+.site-nav {
+  display: flex;
+  gap: 1.25rem;
+  font-size: 0.95rem;
+}
+
+.site-nav a {
+  color: var(--fg-muted);
+}
+
+.site-nav a[aria-current="page"] {
+  color: var(--fg);
+  border-bottom-color: var(--accent);
+}
+
+/* Footer */
+
+.site-footer {
+  max-width: var(--max-width);
+  margin: 4rem auto 0;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+  color: var(--fg-muted);
+  font-size: 0.9rem;
+}
+
+/* Headings & prose */
+
+h1, h2, h3 {
+  line-height: 1.3;
+  font-weight: 700;
+}
+
+h1 {
+  font-size: 1.9rem;
+  margin: 0 0 1.5rem;
+}
+
+h2 {
+  font-size: 1.3rem;
+  margin: 2.5rem 0 1rem;
+}
+
+h3 {
+  font-size: 1.1rem;
+  margin: 1.75rem 0 0.75rem;
+}
+
+p, ul, ol {
+  margin: 0 0 1.1rem;
+}
+
+blockquote {
+  margin: 1.5rem 0;
+  padding-left: 1rem;
+  border-left: 3px solid var(--border);
+  color: var(--fg-muted);
+}
+
+code {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.85em;
+  background: var(--code-bg);
+  padding: 0.1em 0.35em;
+  border-radius: 3px;
+}
+
+pre {
+  background: var(--code-bg);
+  padding: 1rem;
+  overflow-x: auto;
+  border-radius: 4px;
+}
+
+pre code {
+  background: none;
+  padding: 0;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 2.5rem 0;
+}
+
+/* Plain lists (research index, generic list fallback) */
+
+.plain-list {
+  list-style: none;
+  padding: 0;
+}
+
+/* Research theme cards */
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.card {
+  display: block;
+  padding: 1.1rem 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--fg);
+}
+
+.card:hover {
+  border-color: var(--accent);
+}
+
+.card h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+}
+
+.card p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--fg-muted);
+}
+
+/* Blog list */
+
+.post-list {
+  list-style: none;
+  padding: 0;
+}
+
+.post-list li {
+  margin-bottom: 0.85rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.75rem;
+}
+
+.post-date {
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-muted);
+  font-size: 0.9rem;
+}
+
+.post-meta {
+  color: var(--fg-muted);
+  font-size: 0.9rem;
+  margin-bottom: 2rem;
+}
+
+.tag {
+  font-size: 0.78rem;
+  color: var(--fg-muted);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0.05em 0.45em;
+  margin-right: 0.35em;
+}
+
+.back-link {
+  margin-top: 3rem;
+}
+
+/* Publications */
+
+.pub-year {
+  font-size: 1.15rem;
+  margin: 2.25rem 0 0.75rem;
+  color: var(--fg-muted);
+}
+
+.pub-year-group {
+  margin: 0 0 0.5rem;
+}
+
+.pub-entry {
+  margin-bottom: 1.25rem;
+}
+
+.pub-title {
+  font-weight: 700;
+}
+
+.pub-authors,
+.pub-venue {
+  color: var(--fg-muted);
+  font-size: 0.95rem;
+}
+
+.pub-links {
+  font-size: 0.9rem;
+  margin-left: 0.25rem;
+}
+
+.pub-links a {
+  margin-right: 0.6rem;
+}
+
+/* KaTeX display equations: allow horizontal scroll on narrow screens
+   instead of overflowing the page */
+
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.25rem 0;
+}

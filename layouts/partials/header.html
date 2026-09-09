@@ -1,0 +1,11 @@
+<header class="site-header">
+  <a class="site-title" href="{{ "/" | absURL }}">{{ .Site.Title }}</a>
+  <nav class="site-nav">
+    {{ $current := .RelPermalink }}
+    {{ range .Site.Menus.main }}
+    {{ $active := eq $current .URL }}
+    {{ if and (ne .URL "/") (not $active) }}{{ $active = hasPrefix $current .URL }}{{ end }}
+    <a href="{{ .URL | absURL }}"{{ if $active }} aria-current="page"{{ end }}>{{ .Name }}</a>
+    {{ end }}
+  </nav>
+</header>

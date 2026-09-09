@@ -192,6 +192,7 @@ def main() -> int:
     records = [to_record(e) for e in entries]
     records.sort(key=lambda r: (r["year"] is None, -(r["year"] or 0), r["title"]))
 
+    JSON_PATH.parent.mkdir(parents=True, exist_ok=True)
     JSON_PATH.write_text(
         json.dumps(records, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
     )

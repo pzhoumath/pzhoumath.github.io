@@ -2,8 +2,8 @@
 <article class="page home">
   {{ with .Params.photo }}
   {{ with resources.Get . }}
-  {{ $thumb := .Fill "400x400 q82" }}
-  <img class="home-photo" src="{{ $thumb.RelPermalink }}" width="200" height="200" alt="{{ $.Params.photo_alt | default $.Site.Params.author }}">
+  {{ $thumb := .Resize "440x q82" }}
+  <img class="home-photo" src="{{ $thumb.RelPermalink }}" width="{{ $thumb.Width }}" height="{{ $thumb.Height }}" alt="{{ $.Params.photo_alt | default $.Site.Params.author }}">
   {{ end }}
   {{ end }}
   {{ .Content }}

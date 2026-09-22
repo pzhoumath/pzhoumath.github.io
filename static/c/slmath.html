@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#F7F5EF">
+<meta name="description" content="An unofficial, mobile-friendly reader for SLMath seminar and workshop schedules.">
+<title>SLMath Talks</title>
+<style>
+  :root{
+    --paper:#F7F5EF;--raised:#FFF;--ink:#1D211B;--soft:#5B6156;--faint:#858B80;
+    --board:#2F5233;--deep:#23401F;--board-soft:#E6ECE1;--chalk:#B8912A;
+    --live:#B4432E;--live-soft:#F5E2DD;--line:#DCD6C6;--radius:3px;--max-w:680px;
+    --sans:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    --serif:Georgia,"Times New Roman",serif;
+    --mono:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace;
+  }
+  *{box-sizing:border-box}
+  html{scrollbar-gutter:stable}
+  body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
+  a{color:inherit;text-decoration:none}button{font:inherit;color:inherit}
+  a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--chalk);outline-offset:2px}
+  .shell{position:sticky;top:0;z-index:50;border-bottom:1px solid var(--line);background:rgba(247,245,239,.97);backdrop-filter:blur(7px);box-shadow:0 2px 9px rgba(35,64,31,.045)}
+  .shell-inner{max-width:var(--max-w);height:68px;margin:auto;padding:0 16px;display:flex;align-items:center;justify-content:space-between;gap:18px}
+  .brand{font:600 20px/1.05 var(--serif);white-space:nowrap}.brand-sub{display:block;margin-top:4px;color:var(--faint);font:10px/1.1 var(--mono);letter-spacing:.025em}
+  .view-nav{display:flex;gap:3px;padding:3px;border:1px solid var(--line);border-radius:4px;background:var(--raised)}
+  .view-link{min-width:104px;padding:8px 12px 7px;border-radius:2px;color:var(--soft);font:500 12px/1 var(--mono);text-align:center}
+  .view-link:hover{color:var(--deep);background:var(--board-soft)}.view-link.active{color:#fff;background:var(--board)}
+  main{max-width:var(--max-w);min-height:calc(100vh - 130px);margin:auto;padding:18px 16px 90px}
+  .state{text-align:center;color:var(--faint);font-size:13.5px;padding:34px 8px}.state.error{color:var(--live)}
+  .state a,.text-link{color:var(--deep);text-decoration:underline}.sentinel{height:1px}
+  .page-footer{max-width:var(--max-w);margin:auto;padding:0 16px 28px;text-align:center;color:var(--faint);font-size:12px}.page-footer a{text-decoration:underline}
+
+  /* seminar listing */
+  .day-head{margin:24px 0 10px;display:flex;align-items:baseline;gap:10px}.day-head:first-child{margin-top:0}
+  .day-label{font:700 18px/1.2 var(--mono);color:var(--deep);letter-spacing:-.025em}.today{padding:2px 7px;border-radius:100px;background:var(--live-soft);color:var(--live);font:10px/1.5 var(--mono);text-transform:uppercase;letter-spacing:.07em}.rule{height:1px;flex:1;background:var(--line)}
+  .seminar{margin-bottom:11px;overflow:hidden;border:1px solid var(--line);border-radius:var(--radius);background:var(--raised)}.seminar.live{border-color:var(--live)}
+  .seminar-toggle{width:100%;padding:14px 16px;border:0;background:transparent;cursor:pointer;display:grid;grid-template-columns:1fr 20px;gap:10px;text-align:left;align-items:start}.seminar-toggle:hover{background:#FCFBF8}
+  .time{display:block;margin-bottom:5px;color:var(--faint);font:11.5px/1.4 var(--mono)}.seminar-title{display:block;font:600 17px/1.35 var(--serif)}
+  .speaker-row{min-height:20px;margin-top:6px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;color:var(--soft);font-size:13px}.mini-tag{color:var(--board);font:10.5px/1.4 var(--mono)}
+  .chevron{color:var(--faint);transition:transform .15s ease}.seminar.open .chevron{transform:rotate(180deg)}
+  .seminar-detail{display:none;padding:14px 16px 17px;border-top:1px dashed var(--line);color:var(--soft);font-size:13.5px}.seminar.open .seminar-detail{display:block}
+  .detail-row{margin-bottom:6px}.detail-label{margin-right:8px;color:var(--faint);font:10.5px/1.4 var(--mono);text-transform:uppercase;letter-spacing:.05em}
+  .rich{margin-top:12px;line-height:1.6}.rich p{margin:0 0 8px}.rich p:last-child{margin-bottom:0}.links{margin-top:12px;display:flex;gap:14px;flex-wrap:wrap}.links a{color:var(--deep);font-weight:500}
+
+  /* workshop archive */
+  .now-card{display:block;margin-bottom:18px;padding:16px 18px;border:1px solid var(--board);border-radius:var(--radius);background:var(--raised)}
+  .now-eyebrow,.section-label{color:var(--live);font:11px/1.4 var(--mono);text-transform:uppercase;letter-spacing:.06em}.now-title{margin-top:6px;font:600 18px/1.35 var(--serif)}.meta{margin-top:5px;color:var(--faint);font:12px/1.4 var(--mono)}
+  .section-label{margin:4px 2px 8px;color:var(--faint)}.upcoming-strip{display:flex;gap:10px;overflow-x:auto;margin-bottom:6px;padding-bottom:14px;-webkit-overflow-scrolling:touch}
+  .upcoming-card{width:200px;flex:0 0 auto;padding:12px 14px;border:1px solid var(--line);border-radius:var(--radius);background:var(--raised)}.upcoming-card .meta{margin:0 0 5px;color:var(--deep);font-size:11px}.upcoming-title{font:14px/1.35 var(--serif)}
+  .archive-divider{margin:26px 0 14px;padding-top:6px;border-top:1px solid var(--line);color:var(--faint);font:11px/1.4 var(--mono);text-align:center;text-transform:uppercase;letter-spacing:.08em}
+  .year-head{margin:30px 0 14px;display:flex;align-items:baseline;gap:10px}.year-num{color:var(--deep);font:700 36px/1 var(--serif)}
+  .workshop-card{display:block;margin-bottom:12px;overflow:hidden;border:1px solid var(--line);border-radius:var(--radius);background:var(--raised);transition:border-color .12s ease}.workshop-card:hover{border-color:var(--board)}
+  .workshop-image{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;background:var(--board-soft)}.workshop-body{position:relative;padding:14px 16px}.ghost-year{position:absolute;top:8px;right:14px;color:var(--board-soft);font:700 38px/1 var(--serif);pointer-events:none}
+  .workshop-date{margin-bottom:5px;color:var(--faint);font:11.5px/1.4 var(--mono)}.workshop-title{max-width:88%;font:600 17px/1.35 var(--serif)}.teaser{margin-top:6px;color:var(--soft);font-size:13.5px;line-height:1.55;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}.workshop-id{margin-top:8px;color:var(--faint);font:11px/1.4 var(--mono)}
+
+  /* one workshop schedule */
+  .back{display:inline-block;margin:0 0 12px;color:var(--deep);font-size:13px;font-weight:500}.workshop-head{padding:17px 18px;border:1px solid var(--line);border-radius:var(--radius);background:var(--raised)}
+  .id-tag,.status{display:inline-block;margin-right:6px;padding:2px 7px;border-radius:100px;font:10.5px/1.5 var(--mono)}.id-tag{background:var(--board-soft);color:var(--deep)}.status{background:var(--board-soft);color:var(--deep)}.status.live{background:var(--live-soft);color:var(--live)}.status.past{background:#EEEAE0;color:var(--faint)}
+  .workshop-range{margin-top:10px;color:var(--faint);font:11.5px/1.4 var(--mono)}h1{margin:4px 0 0;font:600 21px/1.3 var(--serif)}
+  .day-tabs{margin:14px 0 4px;display:flex;gap:7px;overflow-x:auto;padding:2px 0 8px}.day-tab{flex:0 0 auto;padding:7px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--raised);color:var(--soft);font:11.5px/1.2 var(--mono);cursor:pointer}.day-tab.active{border-color:var(--board);background:var(--board);color:#fff}
+  .schedule-heading{margin:18px 2px 8px;color:var(--faint);font:12px/1.4 var(--mono);text-transform:uppercase;letter-spacing:.06em}.schedule-list{padding:4px 18px;border:1px solid var(--line);border-radius:var(--radius);background:var(--raised)}
+  .talk{padding:12px 0;border-bottom:1px dashed var(--line);display:flex;gap:12px}.talk:last-child{border-bottom:0}.talk-time{flex:0 0 74px;padding-top:2px;color:var(--faint);font:12px/1.4 var(--mono)}.talk-main{min-width:0;flex:1}.talk-title{font-size:14.5px;font-weight:500;line-height:1.4}.talk-speaker{margin-top:2px;color:var(--soft);font-size:13px}
+  .talk-tags,.talk-links{margin-top:6px;display:flex;gap:10px;flex-wrap:wrap}.talk-tag{padding:2px 6px;border-radius:2px;background:var(--live-soft);color:var(--live);font:10px/1.4 var(--mono)}.talk-links a{color:var(--deep);font-size:12.5px;font-weight:500}
+  details.abstract{margin-top:8px;color:var(--soft);font-size:13px}details.abstract summary{color:var(--deep);cursor:pointer;font-weight:500}.abstract-body{padding:7px 0 2px;line-height:1.6}.official{margin-top:22px;text-align:center;color:var(--faint);font-size:12px}.official a{text-decoration:underline}
+  .retry{margin-top:12px;padding:7px 11px;border:1px solid var(--board);border-radius:var(--radius);background:var(--board);color:#fff;cursor:pointer}
+
+  @media(max-width:560px){
+    .shell-inner{height:62px;padding:0 12px;gap:10px}.brand{font-size:18px}.brand-sub{display:none}.view-link{min-width:82px;padding-inline:9px;font-size:11px}
+    main{padding-top:16px}.day-label{font-size:16px}.seminar-toggle{grid-template-columns:1fr 18px}.talk{flex-direction:column;gap:2px}.talk-time{flex-basis:auto;padding-top:0}
+  }
+  @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header class="shell">
+  <div class="shell-inner">
+    <a class="identity" href="slmath.html" data-route="seminars">
+      <span class="brand">SLMath Talks</span>
+      <span class="brand-sub">an unofficial schedule reader</span>
+    </a>
+    <nav class="view-nav" aria-label="Choose a schedule">
+      <a class="view-link" id="seminarsNav" href="slmath.html" data-route="seminars">Seminars</a>
+      <a class="view-link" id="workshopsNav" href="?view=workshops" data-route="workshops">Workshops</a>
+    </nav>
+  </div>
+</header>
+
+<main id="app"><div class="state">Loading schedule&hellip;</div></main>
+<footer class="page-footer" id="footer"></footer>
+
+<script>
+(function(){
+  "use strict";
+
+  var PROXY='https://pzhou.org/c/slmath/slmath-proxy.php';
+  var app=document.getElementById('app');
+  var footer=document.getElementById('footer');
+  var seminarsNav=document.getElementById('seminarsNav');
+  var workshopsNav=document.getElementById('workshopsNav');
+  var routeVersion=0;
+  var activeObserver=null;
+  var seminarDetails={};
+  var scheduleCache={};
+  var activeDays={};
+
+  function escapeHtml(value){
+    if(value===null||value===undefined)return '';
+    return String(value).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]});
+  }
+  function proxyUrl(params){
+    return PROXY+'?'+Object.keys(params).map(function(k){return encodeURIComponent(k)+'='+encodeURIComponent(params[k])}).join('&');
+  }
+  function fetchJson(params){
+    return fetch(proxyUrl(params),{mode:'cors'}).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json()});
+  }
+  function htmlToText(html){
+    if(!html)return '';
+    try{return (new DOMParser().parseFromString(html,'text/html').body.textContent||'').replace(/\s+/g,' ').trim()}
+    catch(e){return String(html).replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim()}
+  }
+  function sanitizeHtml(html){
+    if(!html)return '';
+    var allowed={P:1,BR:1,STRONG:1,EM:1,B:1,I:1,UL:1,OL:1,LI:1,SUP:1,SUB:1,A:1,SPAN:1};
+    var drop={SCRIPT:1,STYLE:1,IFRAME:1,OBJECT:1,EMBED:1,LINK:1,META:1,FORM:1,INPUT:1,BUTTON:1};
+    var doc=new DOMParser().parseFromString(html,'text/html');
+    function walk(node){Array.prototype.slice.call(node.children).forEach(function(child){
+      if(drop[child.tagName]){child.remove();return}
+      walk(child);
+      if(!allowed[child.tagName]){while(child.firstChild)child.parentNode.insertBefore(child.firstChild,child);child.remove();return}
+      var href=child.tagName==='A'?(child.getAttribute('href')||''):'';
+      Array.prototype.slice.call(child.attributes).forEach(function(a){child.removeAttribute(a.name)});
+      if(child.tagName==='A'&&/^(https?:\/\/|mailto:)/i.test(href)){child.setAttribute('href',href);child.setAttribute('target','_blank');child.setAttribute('rel','noopener noreferrer')}
+    })}
+    walk(doc.body);return doc.body.innerHTML;
+  }
+  function fmtRange(fromIso,toIso){
+    var f=new Date(fromIso),t=new Date(toIso),sameMonth=f.getMonth()===t.getMonth()&&f.getFullYear()===t.getFullYear(),sameYear=f.getFullYear()===t.getFullYear();
+    if(sameMonth)return f.toLocaleDateString('en-US',{month:'short'})+' '+f.getDate()+'\u2013'+t.getDate()+', '+f.getFullYear();
+    if(sameYear)return f.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' \u2013 '+t.toLocaleDateString('en-US',{month:'short',day:'numeric'})+', '+f.getFullYear();
+    return f.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+' \u2013 '+t.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  }
+  function setFooter(kind){
+    var url=kind==='seminars'?'https://www.slmath.org/seminars':'https://www.slmath.org/workshops';
+    footer.innerHTML='Unofficial schedule view of <a href="'+url+'" target="_blank" rel="noopener">slmath.org</a>. Not affiliated with SLMath.';
+  }
+  function stopView(){routeVersion++;if(activeObserver){activeObserver.disconnect();activeObserver=null}}
+  function currentRoute(){
+    var q=new URLSearchParams(location.search),view=q.get('view')||'seminars',id=q.get('id')||'';
+    if(view==='workshop'&&/^\d+$/.test(id))return {view:view,id:id};
+    return {view:view==='workshops'?'workshops':'seminars'};
+  }
+  function routeHref(view,id){
+    if(view==='seminars')return location.pathname;
+    if(view==='workshops')return location.pathname+'?view=workshops';
+    return location.pathname+'?view=workshop&id='+encodeURIComponent(id);
+  }
+  function go(view,id,replace){
+    history[replace?'replaceState':'pushState']({},'',routeHref(view,id));
+    renderRoute();
+  }
+  function renderRoute(){
+    stopView();window.scrollTo(0,0);
+    var route=currentRoute();
+    seminarsNav.classList.toggle('active',route.view==='seminars');
+    workshopsNav.classList.toggle('active',route.view!=='seminars');
+    seminarsNav.setAttribute('aria-current',route.view==='seminars'?'page':'false');
+    workshopsNav.setAttribute('aria-current',route.view!=='seminars'?'page':'false');
+    if(route.view==='seminars')renderSeminars();
+    else if(route.view==='workshops')renderArchive();
+    else renderWorkshop(route.id);
+  }
+  document.addEventListener('click',function(e){
+    var link=e.target.closest('[data-route]');if(!link)return;
+    e.preventDefault();var view=link.getAttribute('data-route'),id=link.getAttribute('data-id');go(view,id,false);
+  });
+  window.addEventListener('popstate',renderRoute);
+
+  /* ---------- seminars ---------- */
+  function seminarDayKey(iso){var d=new Date(iso);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+  function isTodayIso(iso){return seminarDayKey(iso)===seminarDayKey(new Date().toISOString())}
+  function seminarDayLabel(iso){return new Date(iso).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})}
+  function timeRange(from,to){
+    var opt={hour:'numeric',minute:'2-digit'},a=new Date(from).toLocaleTimeString('en-US',opt),b=new Date(to).toLocaleTimeString('en-US',opt);
+    return a.slice(-2)===b.slice(-2)?a.slice(0,-3)+'\u2013'+b:a+' \u2013 '+b;
+  }
+  function seminarLive(item){var now=Date.now();return now>=new Date(item.from).getTime()&&now<=new Date(item.to).getTime()}
+  function findZoom(data){
+    var urls=[];if(data.external_url)urls.push(data.external_url);
+    if(data.abstract){var doc=new DOMParser().parseFromString(data.abstract,'text/html');Array.prototype.forEach.call(doc.querySelectorAll('a[href]'),function(a){urls.push(a.getAttribute('href'))})}
+    for(var i=0;i<urls.length;i++){try{var u=new URL(urls[i]);if(u.protocol==='https:'&&/(^|\.)zoom\.us$/i.test(u.hostname))return u.href}catch(e){}}
+    return '';
+  }
+  function seminarDetail(id){
+    if(seminarDetails[id])return seminarDetails[id];
+    seminarDetails[id]=fetchJson({mode:'seminar_detail',id:id}).catch(function(err){delete seminarDetails[id];throw err});
+    return seminarDetails[id];
+  }
+  function seminarCard(item){
+    return '<article class="seminar'+(seminarLive(item)?' live':'')+'" data-seminar="'+escapeHtml(item.id)+'">'+
+      '<button class="seminar-toggle" type="button" aria-expanded="false"><span><span class="time">'+escapeHtml(timeRange(item.from,item.to))+'</span><span class="seminar-title">'+escapeHtml(item.name)+'</span><span class="speaker-row"><span class="speaker">Loading speaker&hellip;</span><span class="tag-slot"></span></span></span><span class="chevron" aria-hidden="true">⌄</span></button><div class="seminar-detail"></div></article>';
+  }
+  function seminarDetailHtml(d){
+    var links=['<a href="https://www.slmath.org/seminars/'+encodeURIComponent(d.id)+'" target="_blank" rel="noopener">SLMath page ↗</a>'];
+    (d.seminar_videos||[]).forEach(function(v){(v.video_file||[]).forEach(function(f){if(f.video_file_url)links.push('<a href="'+escapeHtml(f.video_file_url)+'" target="_blank" rel="noopener">Video ↗</a>')})});
+    (d.seminar_documents||[]).forEach(function(x){(x.document_file||[]).forEach(function(f){if(f.download_asset_path)links.push('<a href="'+escapeHtml(f.download_asset_path)+'" target="_blank" rel="noopener">Notes ↓</a>')})});
+    return (d.event_location?'<div class="detail-row"><span class="detail-label">Location</span>'+escapeHtml(d.event_location)+'</div>':'')+(d.abstract?'<div class="rich">'+sanitizeHtml(d.abstract)+'</div>':'')+'<div class="links">'+links.join('')+'</div>';
+  }
+  function hydrateSeminar(card,id,version){
+    seminarDetail(id).then(function(d){
+      if(version!==routeVersion||!card.isConnected)return;
+      var names=(d.speakers||[]).map(function(s){return s.full_name}).filter(Boolean);card.querySelector('.speaker').textContent=names.length?names.join(', '):'Speaker TBA';
+      var tags=[];if(findZoom(d))tags.push('<span class="mini-tag">[zoom]</span>');var loc=String(d.event_location||'').toLowerCase();if(loc.indexOf('baker')!==-1)tags.push('<span class="mini-tag">[Baker]</span>');else if(loc.indexOf('eisenbud')!==-1)tags.push('<span class="mini-tag">[Eisenbud]</span>');card.querySelector('.tag-slot').innerHTML=tags.join(' ');
+    }).catch(function(){if(card.isConnected)card.querySelector('.speaker').textContent='Speaker unavailable'});
+  }
+  function renderSeminars(){
+    document.title='SLMath Seminars';setFooter('seminars');app.innerHTML='<div id="seminarFeed"><div class="state">Loading seminars&hellip;</div></div><div class="state" id="seminarState"></div><div class="sentinel" id="seminarSentinel"></div>';
+    var version=routeVersion,feed=document.getElementById('seminarFeed'),stateEl=document.getElementById('seminarState');
+    var state={page:0,total:null,loading:false,queue:[],seen:{},lastDay:''};
+    function append(items){
+      if(!feed.querySelector('.seminar'))feed.innerHTML='';
+      items.sort(function(a,b){return new Date(a.from)-new Date(b.from)}).forEach(function(item){
+        if(state.seen[item.id])return;state.seen[item.id]=true;var key=seminarDayKey(item.from);
+        if(key!==state.lastDay){feed.insertAdjacentHTML('beforeend','<div class="day-head"><span class="day-label">'+escapeHtml(seminarDayLabel(item.from))+'</span>'+(isTodayIso(item.from)?'<span class="today">Today</span>':'')+'<span class="rule"></span></div>');state.lastDay=key}
+        feed.insertAdjacentHTML('beforeend',seminarCard(item));var card=feed.lastElementChild;hydrateSeminar(card,item.id,version);
+      });
+    }
+    function load(){
+      if(version!==routeVersion||state.loading)return;
+      if(state.queue.length){append(state.queue.splice(0,10));stateEl.textContent=state.queue.length||state.page<state.total?'':'That\u2019s the full upcoming schedule.';return}
+      if(state.total!==null&&state.page>=state.total){stateEl.textContent='That\u2019s the full upcoming schedule.';return}
+      state.loading=true;stateEl.textContent='Loading more\u2026';var next=state.page+1;
+      fetchJson({mode:'seminars',page:next}).then(function(data){if(version!==routeVersion)return;var current=data.current&&data.current.results||[],upcoming=data.upcoming&&data.upcoming.results||[];state.page=next;state.total=data.upcoming&&data.upcoming.pagination&&data.upcoming.pagination.total_pages||next;state.queue=state.queue.concat(current,upcoming);state.loading=false;append(state.queue.splice(0,10));stateEl.textContent=state.queue.length||state.page<state.total?'':'That\u2019s the full upcoming schedule.'}).catch(function(){if(version!==routeVersion)return;state.loading=false;stateEl.className='state error';stateEl.textContent='Couldn\u2019t load seminars. Please try again shortly.'});
+    }
+    feed.addEventListener('click',function(e){
+      var button=e.target.closest('.seminar-toggle');if(!button)return;var card=button.closest('.seminar'),opening=!card.classList.contains('open');card.classList.toggle('open',opening);button.setAttribute('aria-expanded',opening?'true':'false');var panel=card.querySelector('.seminar-detail');if(!opening||panel.dataset.loaded)return;panel.innerHTML='Loading details&hellip;';seminarDetail(card.dataset.seminar).then(function(d){if(!card.isConnected)return;panel.innerHTML=seminarDetailHtml(d);panel.dataset.loaded='1'}).catch(function(){panel.innerHTML='Couldn\u2019t load details.'});
+    });
+    activeObserver=new IntersectionObserver(function(entries){if(entries[0].isIntersecting)load()},{rootMargin:'500px'});activeObserver.observe(document.getElementById('seminarSentinel'));load();
+  }
+
+  /* ---------- workshop archive ---------- */
+  function workshopLink(id,inner){return '<a '+(inner||'')+' href="'+escapeHtml(routeHref('workshop',id))+'" data-route="workshop" data-id="'+escapeHtml(id)+'">'}
+  function workshopCard(w){
+    var year=new Date(w.from).getFullYear(),teaser=htmlToText(w.teaser),image=w.image_url?'<img class="workshop-image" src="'+escapeHtml(w.image_url)+'" alt="" loading="lazy">':'',ghost=w.image_url?'':'<span class="ghost-year">'+year+'</span>';
+    return workshopLink(w.id,'class="workshop-card"')+image+'<div class="workshop-body">'+ghost+'<div class="workshop-date">'+escapeHtml(fmtRange(w.from,w.to))+'</div><div class="workshop-title">'+escapeHtml(w.name)+'</div>'+(teaser?'<div class="teaser">'+escapeHtml(teaser)+'</div>':'')+'<div class="workshop-id">#'+escapeHtml(w.id)+'</div></div></a>';
+  }
+  function renderArchive(){
+    document.title='SLMath Workshops';setFooter('workshops');app.innerHTML='<div class="state">Loading workshops&hellip;</div>';
+    var version=routeVersion,state={page:0,total:null,loading:false,lastYear:null,seen:{}};
+    function append(list){
+      var feed=document.getElementById('archiveFeed');if(!feed)return;
+      list.forEach(function(w){if(state.seen[w.id])return;state.seen[w.id]=true;var year=new Date(w.from).getFullYear();if(year!==state.lastYear){feed.insertAdjacentHTML('beforeend','<div class="year-head"><span class="year-num">'+year+'</span><span class="rule"></span></div>');state.lastYear=year}feed.insertAdjacentHTML('beforeend',workshopCard(w))});
+    }
+    function loadPast(){
+      if(version!==routeVersion||state.loading||state.total!==null&&state.page>=state.total)return;state.loading=true;var status=document.getElementById('archiveState');if(status)status.textContent='Loading\u2026';var next=state.page+1;
+      fetchJson({mode:'past',page:next}).then(function(data){if(version!==routeVersion)return;var past=data.past||{};state.page=next;state.total=past.pagination&&past.pagination.total_pages||0;state.loading=false;append(past.results||[]);status=document.getElementById('archiveState');if(status)status.textContent=state.page>=state.total?'You\u2019ve reached the start of the archive.':''}).catch(function(){if(version!==routeVersion)return;state.loading=false;status=document.getElementById('archiveState');if(status){status.className='state error';status.textContent='Couldn\u2019t load more workshops.'}});
+    }
+    fetchJson({mode:'current'}).then(function(data){
+      if(version!==routeVersion)return;var current=data.current&&data.current.results||[],upcoming=data.upcoming&&data.upcoming.results||[],html='';
+      current.forEach(function(w){html+=workshopLink(w.id,'class="now-card"')+'<div class="now-eyebrow">Happening now</div><div class="now-title">'+escapeHtml(w.name)+'</div><div class="meta">'+escapeHtml(fmtRange(w.from,w.to))+'</div></a>'});
+      if(upcoming.length){html+='<div class="section-label">Coming up</div><div class="upcoming-strip">';upcoming.forEach(function(w){html+=workshopLink(w.id,'class="upcoming-card"')+'<div class="meta">'+escapeHtml(fmtRange(w.from,w.to))+'</div><div class="upcoming-title">'+escapeHtml(w.name)+'</div></a>'});html+='</div>'}
+      html+='<div class="archive-divider">The archive \u2014 scroll on</div><div id="archiveFeed"></div><div class="state" id="archiveState"></div><div class="sentinel" id="archiveSentinel"></div>';app.innerHTML=html;
+      activeObserver=new IntersectionObserver(function(entries){if(entries[0].isIntersecting)loadPast()},{rootMargin:'450px'});activeObserver.observe(document.getElementById('archiveSentinel'));loadPast();
+    }).catch(function(){if(version!==routeVersion)return;app.innerHTML='<div class="state error">Couldn\u2019t reach the workshop service. Please try again shortly.</div>'});
+  }
+
+  /* ---------- workshop schedule ---------- */
+  function parseGroupDate(value){var p=value.split('-');return new Date(parseInt(p[2],10),parseInt(p[1],10)-1,parseInt(p[0],10))}
+  function groupLabel(value,short){return parseGroupDate(value).toLocaleDateString('en-US',short?{weekday:'short',month:'short',day:'numeric'}:{weekday:'long',month:'long',day:'numeric'})}
+  function groupToday(value){var d=parseGroupDate(value),n=new Date();return d.getFullYear()===n.getFullYear()&&d.getMonth()===n.getMonth()&&d.getDate()===n.getDate()}
+  function talkTime(iso){return new Date(iso).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}
+  function talkRange(from,to){var a=talkTime(from),b=talkTime(to);return a.slice(-2)===b.slice(-2)?a.slice(0,-3)+'\u2013'+b:a+' \u2013 '+b}
+  function workshopStatus(from,to){var now=new Date(),f=new Date(from),t=new Date(to),day=86400000;if(now>t){var ago=Math.max(1,Math.round((now-t)/day));return {text:ago<=1?'Ended yesterday':'Ended '+ago+' days ago',tone:'past'}}if(now>=f&&now<=t)return {text:'Happening now',tone:'live'};var ahead=Math.ceil((f-now)/day);return {text:ahead<=1?'Starts tomorrow':'In '+ahead+' days',tone:''}}
+  function talkList(group){
+    var talks=(group.schedules||[]).filter(function(t){return (t.speakers||[]).length}).sort(function(a,b){return new Date(a.from)-new Date(b.from)});if(!talks.length)return '<div class="state">No talks listed for this day.</div>';
+    return '<div class="schedule-list">'+talks.map(function(t){
+      var speakers=(t.speakers||[]).map(function(s){return s.full_name}).filter(Boolean).join(', '),tags=[],links=[];
+      if(t.not_recorded)tags.push('<span class="talk-tag">Not recorded</span>');if(t.technical_difficulty)tags.push('<span class="talk-tag">Technical difficulty</span>');
+      (t.videos||[]).forEach(function(v){var u=v.playable&&v.playable.video_file_url;if(u)links.push('<a href="'+escapeHtml(u)+'" target="_blank" rel="noopener">Video ↗</a>')});
+      (t.document||[]).forEach(function(d){(d.document_file||[]).forEach(function(f){if(f.download_asset_path)links.push('<a href="'+escapeHtml(f.download_asset_path)+'" target="_blank" rel="noopener">Notes ↓</a>')})});
+      return '<div class="talk"><div class="talk-time">'+escapeHtml(talkRange(t.from,t.to))+'</div><div class="talk-main"><div class="talk-title">'+escapeHtml(t.title||'Untitled')+'</div>'+(speakers?'<div class="talk-speaker">'+escapeHtml(speakers)+'</div>':'')+(tags.length?'<div class="talk-tags">'+tags.join('')+'</div>':'')+(links.length?'<div class="talk-links">'+links.join('')+'</div>':'')+(t.abstract?'<details class="abstract"><summary>Abstract</summary><div class="abstract-body">'+sanitizeHtml(t.abstract)+'</div></details>':'')+'</div></div>';
+    }).join('')+'</div>';
+  }
+  function renderWorkshop(id){
+    document.title='SLMath Workshop #'+id;setFooter('workshops');app.innerHTML='<div class="state">Loading workshop schedule&hellip;</div>';var version=routeVersion;
+    var request=scheduleCache[id]?Promise.resolve(scheduleCache[id]):fetchJson({mode:'schedule',id:id}).then(function(data){scheduleCache[id]=data;return data});
+    request.then(function(data){
+      if(version!==routeVersion)return;var ws=data&&data.workshop_schedules&&data.workshop_schedules[0];if(!ws){app.innerHTML='<a class="back" href="?view=workshops" data-route="workshops">← All workshops</a><div class="state">No schedule data found for #'+escapeHtml(id)+'.</div>';return}
+      var groups=ws.grouped_schedules||[],idx=activeDays[id]||0,today=groups.findIndex(function(g){return groupToday(g.date)});if(activeDays[id]===undefined&&today>=0)idx=today;if(!groups[idx])idx=0;var status=ws.from&&ws.to?workshopStatus(ws.from,ws.to):null;
+      app.innerHTML='<a class="back" href="?view=workshops" data-route="workshops">← All workshops</a><div class="workshop-head"><span class="id-tag">#'+escapeHtml(id)+'</span>'+(status?'<span class="status '+status.tone+'">'+escapeHtml(status.text)+'</span>':'')+(ws.from&&ws.to?'<div class="workshop-range">'+escapeHtml(fmtRange(ws.from,ws.to))+'</div>':'')+'<h1>'+escapeHtml(ws.name||'Untitled workshop')+'</h1></div>'+(groups.length?'<div class="day-tabs" id="dayTabs">'+groups.map(function(g,i){return '<button class="day-tab'+(i===idx?' active':'')+'" data-day="'+i+'">'+escapeHtml(groupLabel(g.date,true))+'</button>'}).join('')+'</div>':'')+'<div class="schedule-heading" id="scheduleHeading"></div><div id="schedulePanel"></div><div class="official"><a href="https://www.slmath.org/workshops/'+encodeURIComponent(id)+'" target="_blank" rel="noopener">View full workshop page on SLMath ↗</a></div>';
+      function select(i){var g=groups[i];if(!g)return;activeDays[id]=i;document.getElementById('scheduleHeading').textContent=groupLabel(g.date,false);document.getElementById('schedulePanel').innerHTML=talkList(g);Array.prototype.forEach.call(document.querySelectorAll('.day-tab'),function(b,j){b.classList.toggle('active',i===j)})}
+      var tabs=document.getElementById('dayTabs');if(tabs){tabs.addEventListener('click',function(e){var b=e.target.closest('.day-tab');if(b)select(parseInt(b.dataset.day,10))});select(idx)}else document.getElementById('schedulePanel').innerHTML='<div class="state">No schedule has been posted yet.</div>';
+    }).catch(function(){if(version!==routeVersion)return;app.innerHTML='<a class="back" href="?view=workshops" data-route="workshops">← All workshops</a><div class="state error">Couldn\u2019t load workshop #'+escapeHtml(id)+'.<br><button class="retry" id="retryWorkshop">Try again</button></div>';document.getElementById('retryWorkshop').addEventListener('click',function(){delete scheduleCache[id];renderWorkshop(id)})});
+  }
+
+  renderRoute();
+})();
+</script>
+</body>
+</html>

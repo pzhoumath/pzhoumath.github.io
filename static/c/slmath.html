@@ -109,8 +109,8 @@
 (function(){
   "use strict";
 
-  var PROXY=/^(pzhou\.org|localhost|127\.0\.0\.1)$/.test(location.hostname)?'slmath-proxy.php':'https://pzhou.org/c/slmath/slmath-proxy.php';
-  var CATALOG=/^(pzhou\.org|localhost|127\.0\.0\.1)$/.test(location.hostname)?'slmath-catalog.php':'https://pzhou.org/c/slmath/slmath-catalog.php';
+  var PROXY=/^(pzhou\.org|(?:www\.)?slmath\.site|localhost|127\.0\.0\.1)$/.test(location.hostname)?'slmath-proxy.php':'https://pzhou.org/c/slmath/slmath-proxy.php';
+  var CATALOG=/^(pzhou\.org|(?:www\.)?slmath\.site|localhost|127\.0\.0\.1)$/.test(location.hostname)?'slmath-catalog.php':'https://pzhou.org/c/slmath/slmath-catalog.php';
   var app=document.getElementById('app');
   var footer=document.getElementById('footer');
   var seminarsNav=document.getElementById('seminarsNav');

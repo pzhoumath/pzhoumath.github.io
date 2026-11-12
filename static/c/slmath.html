@@ -76,7 +76,7 @@
   .recording-status{color:var(--faint);font:11px/1.5 var(--mono)}.recording-status.error{color:var(--live)}
   .video-player{padding:0 16px 14px}.video-player iframe{display:block;width:100%;aspect-ratio:16/9;border:0;background:#151a16}.video-player a{display:inline-block;margin-top:7px;color:var(--deep);font-size:12px;text-decoration:underline}
   .archive-summary{color:var(--faint);font:11px/1.5 var(--mono)}.video-more{text-align:center}.video-more button:disabled{opacity:.55;cursor:wait}
-  .catalog-coverage{color:var(--soft);font-size:12px;line-height:1.6;border-left:2px solid var(--chalk);padding-left:10px}.catalog-event{margin-top:5px;color:var(--faint);font-size:11px}.catalog-excerpt{margin:8px 0 0;color:var(--soft);font-size:12px;line-height:1.5}
+  .catalog-coverage{color:var(--soft);font-size:12px;line-height:1.6;border-left:2px solid var(--chalk);padding-left:10px}.catalog-event{padding:0 16px 12px;color:var(--faint);font-size:12px}.catalog-excerpt{margin:8px 0 0;color:var(--soft);font-size:12px;line-height:1.5}
   .seminar[hidden]{display:none}
 
   @media(max-width:560px){
@@ -319,7 +319,14 @@
       card.querySelector('.time').textContent=new Date(item.from).toLocaleDateString('en-US',{weekday:'short',year:'numeric',month:'short',day:'numeric'})+' · '+timeRange(item.from,item.to);
       card.querySelector('.speaker').textContent=item.speakers_text||'Speaker not listed';
       card.querySelector('.tag-slot').textContent=item.kind==='workshop'?'[workshop]':'[seminar]';
-      if(item.event_name){var event=document.createElement('div');event.className='catalog-event';event.textContent=item.event_name;card.querySelector('.seminar-toggle>span').appendChild(event)}
+      if(item.event_name){
+        var event=document.createElement('div');event.className='catalog-event';
+        if(item.kind==='workshop'&&/^\d+$/.test(String(item.workshop_id))){
+          var workshop=document.createElement('a');workshop.className='text-link';workshop.href=routeHref('workshop',item.workshop_id);workshop.dataset.route='workshop';workshop.dataset.id=item.workshop_id;workshop.textContent=item.event_name;workshop.setAttribute('aria-label','View workshop: '+item.event_name);event.appendChild(workshop);
+        }else event.textContent=item.event_name;
+        // Keep the workshop link outside the button that expands the abstract.
+        card.querySelector('.seminar-toggle').insertAdjacentElement('afterend',event);
+      }
       if(state.query&&item.excerpt){var excerpt=document.createElement('p');excerpt.className='catalog-excerpt';excerpt.textContent=item.excerpt;card.querySelector('.seminar-toggle>span').appendChild(excerpt)}
       card.querySelector('.seminar-detail').innerHTML=seminarDetailHtml(data);
       var recordings=card._recordings;

@@ -68,6 +68,9 @@
   .video-filters{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:18px 0;color:var(--soft);font-size:12px}
   .video-filters select{margin-left:6px;padding:7px;background:var(--raised);color:var(--ink);border:1px solid var(--line);border-radius:var(--radius);font:12px var(--mono)}
   .video-filter{display:flex;align-items:center;gap:6px}.video-filter input{accent-color:var(--board)}
+  .video-search{margin-top:18px}.search-label{display:block;margin-bottom:6px;color:var(--soft);font:11px/1.5 var(--mono)}
+  .search-controls{display:flex;gap:7px}.search-controls input{min-width:0;flex:1;width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--raised);color:var(--ink);font:16px/1.3 var(--sans)}
+  .search-controls input:focus-visible{outline:2px solid var(--chalk);outline-offset:2px}.search-controls button{padding:8px 10px;border:1px solid var(--board);border-radius:var(--radius);background:var(--board);color:white;font-size:12px;cursor:pointer}.search-controls .clear-search{border-color:var(--line);background:transparent;color:var(--soft)}
   .recording-actions{padding:0 16px 14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
   .watch-video{padding:6px 10px;border:1px solid var(--board);border-radius:var(--radius);color:var(--deep);background:var(--board-soft);font-size:12px;cursor:pointer}
   .recording-status{color:var(--faint);font:11px/1.5 var(--mono)}.recording-status.error{color:var(--live)}
@@ -113,6 +116,7 @@
   var videosNav=document.getElementById('videosNav');
   var routeVersion=0;
   var activeObserver=null;
+  var activeSearchTimer=null;
   var seminarDetails={};
   var scheduleCache={};
   var activeDays={};
@@ -157,7 +161,7 @@
     var url=kind==='workshops'?'https://www.slmath.org/workshops':'https://www.slmath.org/seminars';
     footer.innerHTML='Unofficial schedule view of <a href="'+url+'" target="_blank" rel="noopener">slmath.org</a>. Not affiliated with SLMath.';
   }
-  function stopView(){routeVersion++;if(activeObserver){activeObserver.disconnect();activeObserver=null}}
+  function stopView(){routeVersion++;clearTimeout(activeSearchTimer);activeSearchTimer=null;if(activeObserver){activeObserver.disconnect();activeObserver=null}}
   function currentRoute(){
     var q=new URLSearchParams(location.search),view=q.get('view')||'seminars',id=q.get('id')||'';
     if(view==='workshop'&&/^\d+$/.test(id))return {view:view,id:id};
@@ -276,10 +280,12 @@
   function renderVideos(){
     document.title='SLMath Videos';setFooter('videos');
     app.innerHTML='<div class="video-intro"><h1>Past talks &amp; videos</h1><p>Revisit seminars, newest first. Open a recording here or expand a talk for its abstract and notes.</p><p>For workshop recordings, <a class="text-link" href="?view=workshops" data-route="workshops">browse a workshop and select a day</a>.</p></div>'+
+      '<form class="video-search" id="videoSearchForm" role="search"><label class="search-label" for="videoSearch">Search talk titles across the seminar archive</label><div class="search-controls"><input type="search" id="videoSearch" placeholder="Talk title or keyword…" maxlength="160" autocomplete="off"><button type="submit">Search</button><button class="clear-search" type="button" id="clearVideoSearch" hidden>Clear</button></div></form>'+
       '<div class="video-filters"><label>Year <select id="videoYear"><option value="">All years</option></select></label><label class="video-filter"><input type="checkbox" id="recordedOnly" checked> With video</label></div>'+
       '<p class="archive-summary" id="videoSummary" role="status"></p><div id="videoFeed"></div><div class="state" id="videoState" role="status"></div><div class="sentinel" id="videoSentinel"></div><div class="video-more"><button type="button" class="retry" id="moreVideos">Load older talks</button></div>';
     var version=routeVersion,feed=document.getElementById('videoFeed'),status=document.getElementById('videoState'),summary=document.getElementById('videoSummary'),more=document.getElementById('moreVideos'),year=document.getElementById('videoYear'),only=document.getElementById('recordedOnly');
-    var state={generation:0,page:0,total:null,loading:false,checking:0,seen:{},items:[],year:'',autoPaused:false};
+    var search=document.getElementById('videoSearch'),clearSearch=document.getElementById('clearVideoSearch');
+    var state={generation:0,page:0,total:null,loading:false,checking:0,seen:{},items:[],year:'',query:'',totalRows:null,autoPaused:false};
     var sentinel=document.getElementById('videoSentinel'),observer=null;
     function current(g){return version===routeVersion&&g===state.generation}
     function armScroll(){
@@ -294,14 +300,15 @@
         if(has)recorded++;if(failed)unknown++;
         card.hidden=only.checked&&!has&&!failed;if(!card.hidden)shown++;
       });
-      summary.textContent=state.items.length?recorded+' with video / '+(state.items.length-state.checking)+' past talks checked'+(state.checking?' · Checking recordings…':'')+(unknown?' · '+unknown+' could not be checked':''):'';
+      var matchSummary=state.query&&state.totalRows!==null?state.totalRows+' matching '+(state.totalRows===1?'talk':'talks')+(state.year?' in '+state.year:''):'',checkedSummary=state.items.length?recorded+' with video / '+(state.items.length-state.checking)+' past talks checked'+(state.checking?' · Checking recordings…':'')+(unknown?' · '+unknown+' could not be checked':''):'';
+      summary.textContent=[matchSummary,checkedSummary].filter(Boolean).join(' · ');
       status.className='state';
-      if(state.loading)status.textContent=state.checking?'Checking recordings…':'Loading past talks…';
-      else if(!state.items.length)status.textContent='No past seminars found for this year.';
-      else if(!shown)status.textContent='No recordings found in these talks.'+(state.page<state.total?' Try loading older talks.':'');
-      else status.textContent=state.page>=state.total?'You’ve reached the end of this archive.':'';
+      if(state.loading)status.textContent=state.checking?'Checking recordings…':state.query?'Searching past talks…':'Loading past talks…';
+      else if(!state.items.length)status.textContent=state.query?'No past talks match “'+state.query+'”'+(state.year?' in '+state.year:'')+'. Try another keyword or year.':'No past seminars found for this year.';
+      else if(!shown)status.textContent='No recordings found in these talks.'+(state.page<state.total?'':' Uncheck “With video” to see the talks.');
+      else status.textContent=state.page>=state.total?(state.query?'That’s all the matching talks.':'You’ve reached the end of this archive.'):'';
       more.disabled=state.loading;more.hidden=state.total!==null&&state.page>=state.total;
-      more.textContent=state.loading?'Loading…':'Load older talks';
+      more.textContent=state.loading?'Loading…':state.query?'Load more results':'Load older talks';
     }
     function updateCard(card,item,data){
       var names=(data.speakers||[]).map(function(s){return s.full_name}).filter(Boolean);
@@ -321,12 +328,13 @@
       if(observer)observer.unobserve(sentinel);
       var g=state.generation,next=state.page+1;state.loading=true;state.autoPaused=false;applyFilter();
       try{
-        var params={mode:'past_seminars',page:next};if(state.year)params.year=state.year;
+        var params={mode:'past_seminars',page:next};if(state.year)params.year=state.year;if(state.query)params.search=state.query;
         var data=await fetchJson(params);if(!current(g))return;
         if(!data.past||!Array.isArray(data.past.results))throw new Error('Invalid archive response');
         if(year.options.length===1)(data.years||[]).forEach(function(y){var option=document.createElement('option');option.value=String(y);option.textContent=y;year.appendChild(option)});
         var items=data.past.results.filter(function(item){if(!/^\d+$/.test(String(item.id))||state.seen[item.id])return false;state.seen[item.id]=true;return true}).sort(function(a,b){return new Date(b.from)-new Date(a.from)});
         state.page=next;state.total=Number(data.past.pagination&&data.past.pagination.total_pages)||next;
+        state.totalRows=data.past.pagination&&data.past.pagination.total_rows!=null?Number(data.past.pagination.total_rows):null;
         state.items=state.items.concat(items);
         items.forEach(function(item){
           feed.insertAdjacentHTML('beforeend',seminarCard(item));var card=feed.lastElementChild;
@@ -343,7 +351,20 @@
         if(!current(g))return;state.loading=false;state.autoPaused=true;state.checking=0;applyFilter();status.className='state error';status.textContent='Couldn’t load past talks. Please try again.';more.hidden=false;more.disabled=false;more.textContent='Try again';
       }
     }
-    year.addEventListener('change',function(){state.generation++;state.year=year.value;state.page=0;state.total=null;state.seen={};state.items=[];state.loading=false;state.checking=0;feed.innerHTML='';load()});
+    function resetResults(){
+      clearTimeout(activeSearchTimer);activeSearchTimer=null;
+      if(version!==routeVersion)return;
+      state.generation++;state.year=year.value;state.query=search.value.trim();state.page=0;state.total=null;state.totalRows=null;state.seen={};state.items=[];state.loading=false;state.checking=0;feed.innerHTML='';clearSearch.hidden=!search.value;load();
+    }
+    document.getElementById('videoSearchForm').addEventListener('submit',function(e){e.preventDefault();resetResults()});
+    search.addEventListener('input',function(e){
+      clearSearch.hidden=!search.value;clearTimeout(activeSearchTimer);
+      if(e.isComposing)return;
+      if(!search.value.trim())resetResults();else activeSearchTimer=setTimeout(resetResults,400);
+    });
+    clearSearch.addEventListener('click',function(){search.value='';resetResults();search.focus()});
+    search.addEventListener('keydown',function(e){if(e.key==='Escape'){e.preventDefault();search.value='';resetResults()}});
+    year.addEventListener('change',resetResults);
     only.addEventListener('change',function(){applyFilter();armScroll()});more.addEventListener('click',load);
     feed.addEventListener('click',async function(e){
       var card=e.target.closest('.seminar');if(!card)return;

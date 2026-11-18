@@ -82,7 +82,8 @@ canvas { position:absolute; display:block; inset:0; width:100%; height:100%; }
     <div class="opts">
       <label class="check"><input id="pencilOnly" type="checkbox" checked> Pencil only</label>
       <label class="check"><input id="enhanced" type="checkbox" checked> Smooth input</label>
-      <label class="check"><input id="predict" type="checkbox" checked> Predict tip</label>
+      <label class="check" title="Use gentle filtering and a continuous curved line instead of short individual segments"><input id="clean" type="checkbox" checked> Clean ink</label>
+      <label class="check" title="Optional translucent look-ahead; disable if it makes the tip look fuzzy"><input id="predict" type="checkbox"> Predict tip</label>
       <label class="check"><input id="pressure" type="checkbox"> Pressure width</label>
       <label class="check"><input id="grid" type="checkbox"> Grid</label>
     </div>
@@ -112,7 +113,7 @@ canvas { position:absolute; display:block; inset:0; width:100%; height:100%; }
   const ink = $('ink'), forecast = $('forecast'), paper = $('paper');
   const ctx = ink.getContext('2d', { alpha: true, desynchronized: true });
   const fx = forecast.getContext('2d', { alpha: true, desynchronized: true });
-  const controls = { pen:$('pen'), eraser:$('eraser'), undo:$('undo'), redo:$('redo'), clear:$('clear'), save:$('save'), width:$('width'), pencilOnly:$('pencilOnly'), enhanced:$('enhanced'), predict:$('predict'), pressure:$('pressure'), grid:$('grid') };
+  const controls = { pen:$('pen'), eraser:$('eraser'), undo:$('undo'), redo:$('redo'), clear:$('clear'), save:$('save'), width:$('width'), pencilOnly:$('pencilOnly'), enhanced:$('enhanced'), clean:$('clean'), predict:$('predict'), pressure:$('pressure'), grid:$('grid') };
   const storageKey = 'paper-lab-ink-v1';
   let tool='pen', color='#1b2536', width=2.4, strokes=[], redoStack=[], active=null;
   let dims={w:1,h:1}, lastSaveTimeout=0;
@@ -151,12 +152,60 @@ canvas { position:absolute; display:block; inset:0; width:100%; height:100%; }
     context.fillStyle=stroke.color;
     context.beginPath();context.arc(P.x,P.y,Math.max(.5,r),0,Math.PI*2);context.fill();
   }
+  function midpoint(a,b) {
+    return [(a[0]+b[0])*.5,(a[1]+b[1])*.5,(a[2]+b[2])*.5];
+  }
+  function cleanBrush(context,stroke) {
+    context.strokeStyle=stroke.color;
+    context.lineWidth=stroke.width;
+    context.lineCap='round';context.lineJoin='round';
+  }
+  // A continuous quadratic path avoids the repeated round-cap edges of tiny lines.
   function renderStroke(context,stroke) {
     if (stroke.tool==='eraser') return;
     const pts=stroke.points;
     if (!pts.length) return;
+    if (stroke.clean && !stroke.pressure) {
+      if (pts.length===1) { dot(context,pts[0],stroke);return; }
+      cleanBrush(context,stroke);
+      const first=pxy(pts[0]);
+      context.beginPath();context.moveTo(first.x,first.y);
+      for(let i=1;i<pts.length-1;i++) {
+        const a=pxy(pts[i]),b=pxy(pts[i+1]);
+        context.quadraticCurveTo(a.x,a.y,(a.x+b.x)*.5,(a.y+b.y)*.5);
+      }
+      const last=pxy(pts[pts.length-1]);
+      context.lineTo(last.x,last.y);context.stroke();
+      return;
+    }
     dot(context,pts[0],stroke);
     for (let i=1;i<pts.length;i++) segment(context,pts[i-1],pts[i],stroke);
+  }
+  // Incremental rendering: draw only the portion made stable by the newest point.
+  function commitCleanSegment(stroke) {
+    const pts=stroke.points,n=pts.length;
+    if(n<3)return;
+    const a=pxy(pts[n-3]),b=pxy(pts[n-2]),c=pxy(pts[n-1]);
+    const from=n===3 ? a : {x:(a.x+b.x)*.5,y:(a.y+b.y)*.5};
+    cleanBrush(ctx,stroke);
+    ctx.beginPath();ctx.moveTo(from.x,from.y);
+    ctx.quadraticCurveTo(b.x,b.y,(b.x+c.x)*.5,(b.y+c.y)*.5);
+    ctx.stroke();
+  }
+  function commitCleanTail(stroke) {
+    const pts=stroke.points,n=pts.length;
+    if(n<2)return;
+    const from=n===2?pts[0]:midpoint(pts[n-2],pts[n-1]);
+    const a=pxy(from),b=pxy(pts[n-1]);
+    cleanBrush(ctx,stroke);
+    ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+  }
+  function previewCleanTail() {
+    if(!active || !active.clean || active.tool!=='pen')return;
+    const pts=active.points,n=pts.length;
+    if(n<2)return;
+    const from=n===2?pts[0]:midpoint(pts[n-2],pts[n-1]);
+    segment(fx,from,pts[n-1],active);
   }
   // Redraw is only used after undo, erasing, loading, and resizing. NEVER for each pen move.
   function redraw() {
@@ -187,12 +236,35 @@ canvas { position:absolute; display:block; inset:0; width:100%; height:100%; }
     paper.classList.toggle('has-ink',strokes.length>0 || !!active);
   }
   function cancelForecast() { fx.clearRect(0,0,dims.w,dims.h); }
+  // Very light velocity-dependent filtering: steady curves, fast strokes stay responsive.
+  function recordSample(e) {
+    const raw=location(e),prev=active.points[active.points.length-1];
+    const dx=(raw[0]-prev[0])*dims.w,dy=(raw[1]-prev[1])*dims.h;
+    if(Math.abs(dx)+Math.abs(dy)<.18)return false;
+    let p=raw;
+    if(active.clean && active.tool==='pen') {
+      const time=Number.isFinite(e.timeStamp)?e.timeStamp:performance.now();
+      const dt=Math.max(4,Math.min(40,time-active.lastSampleTime||12));
+      const speed=Math.hypot(dx,dy)/dt;
+      const alpha=Math.min(.97,.72+.22*Math.min(1,speed/.9));
+      p=[prev[0]+alpha*(raw[0]-prev[0]),prev[1]+alpha*(raw[1]-prev[1]),raw[2]];
+      active.lastSampleTime=time;
+    }
+    active.points.push(p);
+    if(active.tool==='pen') {
+      if(active.clean) commitCleanSegment(active);
+      else segment(ctx,prev,p,active);
+    } else eraseNear(p);
+    return true;
+  }
   function start(e) {
     if (active || e.pointerType==='mouse' && e.button!==0 || (controls.pencilOnly.checked && e.pointerType!=='pen')) return;
     e.preventDefault();
     if (typeof ink.setPointerCapture==='function') {try{ink.setPointerCapture(e.pointerId)}catch(err){}}
     const pt=location(e);
-    active={id:e.pointerId,tool,color,width,pressure:controls.pressure.checked,points:[pt]};
+    active={id:e.pointerId,tool,color,width,pressure:controls.pressure.checked,
+      clean:controls.clean.checked && !controls.pressure.checked,
+      lastSampleTime:Number.isFinite(e.timeStamp)?e.timeStamp:performance.now(),points:[pt]};
     if (tool==='pen') dot(ctx,pt,active);
     else eraseNear(pt);
     cancelForecast();
@@ -232,14 +304,12 @@ canvas { position:absolute; display:block; inset:0; width:100%; height:100%; }
     // Always finish at the dispatched event's current position; remove repeated samples.
     if (samples[samples.length-1]!==e) samples=[...samples,e];
     for (const sample of samples) {
-      const p=location(sample), prev=active.points[active.points.length-1];
-      if (Math.abs(p[0]-prev[0])*dims.w+Math.abs(p[1]-prev[1])*dims.h < .18) continue;
-      active.points.push(p);
-      if (active.tool==='pen') segment(ctx,prev,p,active);
-      else eraseNear(p);
-      pointCount++;
+      if(recordSample(sample))pointCount++;
     }
     cancelForecast();
+    // This full-opacity tail is temporary, keeping the tip responsive without
+    // committing rough raw segments to the permanent ink canvas.
+    previewCleanTail();
     if (active.tool==='pen' && enhanced && controls.predict.checked && supportsPredicted) {
       try {
         const predicted=e.getPredictedEvents().slice(0,6); // only a short lookahead
@@ -257,8 +327,8 @@ canvas { position:absolute; display:block; inset:0; width:100%; height:100%; }
     e.preventDefault();
     cancelForecast();
     if(e.type==='pointerup' && active.tool==='pen') {
-      const last=location(e),prev=active.points[active.points.length-1];
-      if(Math.abs(last[0]-prev[0])*dims.w+Math.abs(last[1]-prev[1])*dims.h>.18) {active.points.push(last);segment(ctx,prev,last,active);}
+      recordSample(e);
+      if(active.clean)commitCleanTail(active);
       // Store reduced precision to keep local JSON small.
       active.points=active.points.map(p=>[+p[0].toFixed(5),+p[1].toFixed(5),+p[2].toFixed(3)]);
       strokes.push(active); redoStack=[];saveSoon();

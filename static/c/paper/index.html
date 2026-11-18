@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#f6f7fb">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>Paper Lab — Apple Pencil test</title>
+<style>
+:root { color-scheme:light; --bg:#f6f7fb; --border:#dfe3eb; --ink:#1d2638; --sub:#64748b; --blue:#2458db; --ring:#c7d7ff; }
+* { box-sizing:border-box; }
+html,body { margin:0; width:100%; height:100%; overflow:hidden; overscroll-behavior:none; }
+body { font: 14px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color:var(--ink); background:var(--bg); -webkit-tap-highlight-color:transparent; }
+.app { height:100%; height:100dvh; display:flex; flex-direction:column; min-height:0; padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom); }
+.header { min-height:57px; display:flex; align-items:center; gap:12px; padding:8px 16px; border-bottom:1px solid var(--border); background:#fff; flex:none; }
+.brand { display:flex; align-items:baseline; gap:8px; white-space:nowrap; }
+.brand strong { font-weight:750; font-size:18px; letter-spacing:-.6px; }
+.brand span { font-size:11px; color:var(--sub); }
+.controls { display:flex; align-items:center; flex:1; justify-content:flex-end; gap:7px; min-width:0; flex-wrap:wrap; }
+.group { display:flex; align-items:center; gap:4px; padding:3px; background:#f2f4f8; border:1px solid #e6e9ef; border-radius:12px; }
+button,select { font:inherit; touch-action:manipulation; }
+button { color:var(--ink); background:transparent; border:1px solid transparent; border-radius:9px; height:34px; padding:0 11px; cursor:pointer; font-weight:600; white-space:nowrap; }
+button.active { background:#fff; border-color:#c8d6ff; color:#234dc1; box-shadow:0 1px 2px #23376513; }
+button:disabled { color:#aab1bd; cursor:default; }
+button:focus-visible, select:focus-visible { outline:3px solid var(--ring); }
+button[aria-label] { padding:0 9px; font-size:17px; }
+.swatches { gap:2px; }
+.swatch { display:flex; align-items:center; justify-content:center; padding:0; width:30px; height:34px; }
+.swatch i { display:block; background:var(--sw); width:17px; height:17px; border-radius:50%; border:1px solid #00000018; }
+.swatch.active i { outline:2px solid var(--blue); outline-offset:3px; }
+#width { appearance:none; background:#fff; border:1px solid var(--border); border-radius:8px; height:34px; padding:0 8px; min-width:62px; }
+.pagebar { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:7px 16px; flex:none; background:#f9fafc; border-bottom:1px solid var(--border); }
+.pagebar .hint { font-size:12px; color:var(--sub); }
+.opts { display:flex; align-items:center; gap:13px; flex-wrap:wrap; }
+.check { display:inline-flex; gap:5px; align-items:center; font-size:12px; user-select:none; white-space:nowrap; }
+.check input { margin:0; width:15px; height:15px; accent-color:var(--blue); }
+.workspace { position:relative; min-height:0; flex:1; overflow:hidden; background:#e9ecf3; padding:10px; display:flex; }
+.paper { position:relative; flex:1; background:#fff; border:1px solid #d7dce7; border-radius:6px; box-shadow:0 4px 18px #2934520a; overflow:hidden; min-width:0; min-height:0; }
+.paper.grid { background-color:#fff; background-image:linear-gradient(#9db8e620 1px,transparent 1px),linear-gradient(90deg,#9db8e620 1px,transparent 1px); background-size:26px 26px; }
+canvas { position:absolute; display:block; inset:0; width:100%; height:100%; }
+#ink { touch-action:none; cursor:crosshair; }
+#forecast { pointer-events:none; }
+.paper-label { position:absolute; top:14px; left:17px; pointer-events:none; color:#a2aab7; font-size:12px; letter-spacing:.03em; transition:opacity .2s; }
+.paper.has-ink .paper-label { opacity:0; }
+.footer { min-height:39px; flex:none; display:flex; align-items:center; gap:16px; justify-content:space-between; border-top:1px solid var(--border); padding:5px 16px; background:white; font-size:11px; color:var(--sub); }
+.metrics { display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+.metrics b { color:#26354e; font-weight:650; }
+.status { display:flex; align-items:center; gap:6px; }
+.dot { height:7px; width:7px; background:#3bac70; border-radius:50%; }
+.warning { color:#a34022; }
+@media(max-width:950px) { .brand span { display:none; } .header { flex-wrap:wrap; gap:5px; padding:6px 10px; } .brand strong { font-size:15px; } .controls { justify-content:flex-end; gap:4px; } .group {gap:2px;} button {padding:0 8px;} .pagebar {padding:6px 10px;} .workspace {padding:5px;} .footer {padding:6px 10px;} }
+@media(max-width:690px) { .header { flex-direction:column; align-items:stretch; } .controls {justify-content:space-between;} .pagebar .hint {display:none;} .opts {width:100%; justify-content:space-between; gap:3px;} .metrics {gap:8px;} .footer .right {display:none;} .brand {justify-content:center;} }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="header">
+    <div class="brand"><strong>Paper Lab</strong><span>Apple Pencil latency test · local only</span></div>
+    <div class="controls">
+      <div class="group" aria-label="Tool">
+        <button id="pen" class="active" aria-pressed="true">✎ Pen</button>
+        <button id="eraser" aria-pressed="false">⌫ Eraser</button>
+      </div>
+      <div class="group swatches" aria-label="Ink color">
+        <button class="swatch active" data-color="#1b2536" aria-label="Black ink" aria-pressed="true" style="--sw:#1b2536"><i></i></button>
+        <button class="swatch" data-color="#275dcc" aria-label="Blue ink" aria-pressed="false" style="--sw:#275dcc"><i></i></button>
+        <button class="swatch" data-color="#d44a45" aria-label="Red ink" aria-pressed="false" style="--sw:#d44a45"><i></i></button>
+        <button class="swatch" data-color="#23846c" aria-label="Green ink" aria-pressed="false" style="--sw:#23846c"><i></i></button>
+      </div>
+      <select id="width" aria-label="Pen thickness"><option value="1.4">Thin</option><option value="2.4" selected>Medium</option><option value="4">Thick</option><option value="7">Marker</option></select>
+      <div class="group">
+        <button id="undo" aria-label="Undo" title="Undo (⌘Z)" disabled>↶</button>
+        <button id="redo" aria-label="Redo" title="Redo (⇧⌘Z)" disabled>↷</button>
+        <button id="clear" title="Clear page">Clear</button>
+        <button id="save" title="Save PNG image">PNG ↓</button>
+      </div>
+    </div>
+  </header>
+  <div class="pagebar">
+    <div class="hint">One test page · Draw small equations, fast loops, and long lines.</div>
+    <div class="opts">
+      <label class="check"><input id="pencilOnly" type="checkbox" checked> Pencil only</label>
+      <label class="check"><input id="enhanced" type="checkbox" checked> Smooth input</label>
+      <label class="check"><input id="predict" type="checkbox" checked> Predict tip</label>
+      <label class="check"><input id="pressure" type="checkbox"> Pressure width</label>
+      <label class="check"><input id="grid" type="checkbox"> Grid</label>
+    </div>
+  </div>
+  <main class="workspace">
+    <div class="paper" id="paper">
+      <div class="paper-label">Page 1 · Write here with Apple Pencil</div>
+      <canvas id="ink" aria-label="Writing surface"></canvas>
+      <canvas id="forecast" aria-hidden="true"></canvas>
+    </div>
+  </main>
+  <footer class="footer">
+    <div class="metrics">
+      <span id="penStatus"><b>Input:</b> ready</span>
+      <span><b>Coalesced:</b> <span id="coalescedStatus">checking</span></span>
+      <span><b>Predicted:</b> <span id="predictedStatus">checking</span></span>
+      <span><b>Events/s:</b> <span id="eventRate">0</span></span>
+      <span><b>Points/s:</b> <span id="pointRate">0</span></span>
+    </div>
+    <div class="right status"><span class="dot"></span><span id="saveStatus">Offline · autosaved locally</span></div>
+  </footer>
+</div>
+<script>
+(() => {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const ink = $('ink'), forecast = $('forecast'), paper = $('paper');
+  const ctx = ink.getContext('2d', { alpha: true, desynchronized: true });
+  const fx = forecast.getContext('2d', { alpha: true, desynchronized: true });
+  const controls = { pen:$('pen'), eraser:$('eraser'), undo:$('undo'), redo:$('redo'), clear:$('clear'), save:$('save'), width:$('width'), pencilOnly:$('pencilOnly'), enhanced:$('enhanced'), predict:$('predict'), pressure:$('pressure'), grid:$('grid') };
+  const storageKey = 'paper-lab-ink-v1';
+  let tool='pen', color='#1b2536', width=2.4, strokes=[], redoStack=[], active=null;
+  let dims={w:1,h:1}, lastSaveTimeout=0;
+  let eventCount=0, pointCount=0, hasDrawn=false;
+  const supportsCoalesced = typeof PointerEvent !== 'undefined' && typeof PointerEvent.prototype.getCoalescedEvents === 'function';
+  const supportsPredicted = typeof PointerEvent !== 'undefined' && typeof PointerEvent.prototype.getPredictedEvents === 'function';
+  $('coalescedStatus').textContent=supportsCoalesced ? 'available' : 'unavailable';
+  $('predictedStatus').textContent=supportsPredicted ? 'available' : 'unavailable';
+  if (!supportsPredicted) controls.predict.checked=false;
+  if (!supportsCoalesced) controls.enhanced.checked=false;
+  controls.predict.disabled=!supportsPredicted;
+
+  function configure(context, ratio) {
+    context.setTransform(ratio,0,0,ratio,0,0);
+    context.lineCap='round'; context.lineJoin='round';
+  }
+  function resize() {
+    const rect=paper.getBoundingClientRect();
+    const w=Math.max(1,rect.width), h=Math.max(1,rect.height);
+    const ratio=Math.min(window.devicePixelRatio||1,2); // avoid oversized canvas on older iPads
+    dims={w,h};
+    for (const c of [ink,forecast]) { c.width=Math.round(w*ratio); c.height=Math.round(h*ratio); }
+    configure(ctx,ratio);configure(fx,ratio);
+    redraw();
+  }
+  function pxy(p) { return {x:p[0]*dims.w,y:p[1]*dims.h,p:p[2]}; }
+  function segment(context, a, b, stroke) {
+    if (!a || !b) return;
+    const A=pxy(a), B=pxy(b);
+    context.strokeStyle=stroke.color;
+    context.lineWidth=stroke.width*(stroke.pressure ? Math.max(.45,Math.min(1.6,(A.p+B.p)*.5*2.0)) : 1);
+    context.beginPath(); context.moveTo(A.x,A.y); context.lineTo(B.x,B.y); context.stroke();
+  }
+  function dot(context,p,stroke) {
+    const P=pxy(p); const r=(stroke.width*(stroke.pressure ? Math.max(.45,Math.min(1.6,P.p*2.0)):1))/2;
+    context.fillStyle=stroke.color;
+    context.beginPath();context.arc(P.x,P.y,Math.max(.5,r),0,Math.PI*2);context.fill();
+  }
+  function renderStroke(context,stroke) {
+    if (stroke.tool==='eraser') return;
+    const pts=stroke.points;
+    if (!pts.length) return;
+    dot(context,pts[0],stroke);
+    for (let i=1;i<pts.length;i++) segment(context,pts[i-1],pts[i],stroke);
+  }
+  // Redraw is only used after undo, erasing, loading, and resizing. NEVER for each pen move.
+  function redraw() {
+    ctx.clearRect(0,0,dims.w,dims.h);
+    fx.clearRect(0,0,dims.w,dims.h);
+    for (const stroke of strokes) renderStroke(ctx,stroke);
+    if (active && active.tool==='pen') renderStroke(ctx,active);
+    paper.classList.toggle('has-ink',strokes.length>0 || !!active);
+  }
+  function location(e) {
+    const r=ink.getBoundingClientRect();
+    return [Math.min(1,Math.max(0,(e.clientX-r.left)/r.width)),Math.min(1,Math.max(0,(e.clientY-r.top)/r.height)),Math.max(0,Math.min(1,e.pressure || .5))];
+  }
+  function saveSoon() {
+    clearTimeout(lastSaveTimeout);
+    $('saveStatus').textContent='Saving locally…';
+    lastSaveTimeout=setTimeout(() => {
+      const serialize=()=>{
+        // Heavy serialization must never interrupt an in-progress Pencil stroke.
+        if (active) { saveSoon(); return; }
+        try {localStorage.setItem(storageKey,JSON.stringify(strokes));$('saveStatus').textContent='Offline · autosaved locally';}
+        catch(err){$('saveStatus').textContent='Storage unavailable — export PNG';$('saveStatus').classList.add('warning');}};
+      if ('requestIdleCallback' in window) requestIdleCallback(serialize,{timeout:1200}); else serialize();
+    },700);
+  }
+  function refresh() {
+    controls.undo.disabled=!strokes.length;controls.redo.disabled=!redoStack.length;
+    paper.classList.toggle('has-ink',strokes.length>0 || !!active);
+  }
+  function cancelForecast() { fx.clearRect(0,0,dims.w,dims.h); }
+  function start(e) {
+    if (active || e.pointerType==='mouse' && e.button!==0 || (controls.pencilOnly.checked && e.pointerType!=='pen')) return;
+    e.preventDefault();
+    if (typeof ink.setPointerCapture==='function') {try{ink.setPointerCapture(e.pointerId)}catch(err){}}
+    const pt=location(e);
+    active={id:e.pointerId,tool,color,width,pressure:controls.pressure.checked,points:[pt]};
+    if (tool==='pen') dot(ctx,pt,active);
+    else eraseNear(pt);
+    cancelForecast();
+    $('penStatus').innerHTML='<b>Input:</b> '+(e.pointerType||'unknown');
+    refresh();
+  }
+  function sqDistToSegment(p,a,b) {
+    const px=p[0]*dims.w,py=p[1]*dims.h;
+    const ax=a[0]*dims.w,ay=a[1]*dims.h,bx=b[0]*dims.w,by=b[1]*dims.h;
+    const vx=bx-ax,vy=by-ay,l=vx*vx+vy*vy;
+    const t=l ? Math.max(0,Math.min(1,((px-ax)*vx+(py-ay)*vy)/l)) : 0;
+    const dx=px-(ax+t*vx),dy=py-(ay+t*vy);
+    return dx*dx+dy*dy;
+  }
+  function eraseNear(pt) {
+    const radius=16,rad2=radius*radius;
+    let altered=false;
+    strokes=strokes.filter(s=>{
+      if (s.tool!=='pen')return false;
+      const ps=s.points;
+      for(let i=0;i<ps.length;i++) {
+        if (sqDistToSegment(pt,ps[i],ps[Math.min(i+1,ps.length-1)])<rad2) {altered=true;return false;}
+      }
+      return true;
+    });
+    if (altered) {redoStack=[];redraw();saveSoon();refresh();}
+  }
+  function move(e) {
+    if (!active || e.pointerId!==active.id) return;
+    e.preventDefault();
+    eventCount++;
+    const enhanced=controls.enhanced.checked;
+    let samples=[e];
+    if (enhanced && supportsCoalesced) {
+      try { const batch=e.getCoalescedEvents(); if(batch && batch.length) samples=batch; } catch(err){}
+    }
+    // Always finish at the dispatched event's current position; remove repeated samples.
+    if (samples[samples.length-1]!==e) samples=[...samples,e];
+    for (const sample of samples) {
+      const p=location(sample), prev=active.points[active.points.length-1];
+      if (Math.abs(p[0]-prev[0])*dims.w+Math.abs(p[1]-prev[1])*dims.h < .18) continue;
+      active.points.push(p);
+      if (active.tool==='pen') segment(ctx,prev,p,active);
+      else eraseNear(p);
+      pointCount++;
+    }
+    cancelForecast();
+    if (active.tool==='pen' && enhanced && controls.predict.checked && supportsPredicted) {
+      try {
+        const predicted=e.getPredictedEvents().slice(0,6); // only a short lookahead
+        let prev=active.points[active.points.length-1];
+        fx.save();fx.globalAlpha=.48;
+        for(const event of predicted) {
+          const p=location(event);segment(fx,prev,p,active);prev=p;
+        }
+        fx.restore();
+      }catch(err){}
+    }
+  }
+  function finish(e) {
+    if (!active || e.pointerId!==active.id) return;
+    e.preventDefault();
+    cancelForecast();
+    if(e.type==='pointerup' && active.tool==='pen') {
+      const last=location(e),prev=active.points[active.points.length-1];
+      if(Math.abs(last[0]-prev[0])*dims.w+Math.abs(last[1]-prev[1])*dims.h>.18) {active.points.push(last);segment(ctx,prev,last,active);}
+      // Store reduced precision to keep local JSON small.
+      active.points=active.points.map(p=>[+p[0].toFixed(5),+p[1].toFixed(5),+p[2].toFixed(3)]);
+      strokes.push(active); redoStack=[];saveSoon();
+    }
+    active=null;
+    refresh();
+  }
+  ink.addEventListener('pointerdown',start);
+  ink.addEventListener('pointermove',move);
+  ink.addEventListener('pointerup',finish);
+  ink.addEventListener('pointercancel',finish);
+  ink.addEventListener('lostpointercapture', e=>{if(active&&e.pointerId===active.id)finish(e)});
+  ink.addEventListener('contextmenu',e=>e.preventDefault());
+  ink.addEventListener('touchstart',e=>{if(controls.pencilOnly.checked && active)e.preventDefault();},{passive:false});
+
+  function chooseTool(next){tool=next;controls.pen.classList.toggle('active',tool==='pen');controls.eraser.classList.toggle('active',tool==='eraser');controls.pen.setAttribute('aria-pressed',tool==='pen');controls.eraser.setAttribute('aria-pressed',tool==='eraser');}
+  controls.pen.onclick=()=>chooseTool('pen');controls.eraser.onclick=()=>chooseTool('eraser');
+  for (const swatch of document.querySelectorAll('.swatch')) swatch.onclick=()=>{
+    color=swatch.dataset.color;
+    for(const item of document.querySelectorAll('.swatch')){item.classList.toggle('active',item===swatch);item.setAttribute('aria-pressed',item===swatch?'true':'false');}
+    chooseTool('pen');
+  };
+  controls.width.onchange=()=>{width=Number(controls.width.value)};
+  controls.grid.onchange=()=>paper.classList.toggle('grid',controls.grid.checked);
+  controls.undo.onclick=()=>{if(!strokes.length)return;redoStack.push(strokes.pop());redraw();refresh();saveSoon();};
+  controls.redo.onclick=()=>{if(!redoStack.length)return;strokes.push(redoStack.pop());redraw();refresh();saveSoon();};
+  controls.clear.onclick=()=>{if(!strokes.length)return;if(!confirm('Erase the whole test page?'))return;strokes=[];redoStack=[];redraw();refresh();saveSoon();};
+  controls.save.onclick=()=>{
+    const canvas=document.createElement('canvas'); canvas.width=ink.width;canvas.height=ink.height;
+    const context=canvas.getContext('2d');context.fillStyle='#fff';context.fillRect(0,0,canvas.width,canvas.height);
+    context.drawImage(ink,0,0);const link=document.createElement('a');link.download='paper-lab.png';link.href=canvas.toDataURL('image/png');link.click();
+  };
+  document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){
+    e.preventDefault();(e.shiftKey?controls.redo:controls.undo).click();
+  }});
+  let lastMetric=performance.now();
+  setInterval(()=>{
+    const now=performance.now(),secs=Math.max(.5,(now-lastMetric)/1000);
+    $('eventRate').textContent=Math.round(eventCount/secs);
+    $('pointRate').textContent=Math.round(pointCount/secs);
+    eventCount=0;pointCount=0;lastMetric=now;
+  },1000);
+  try {
+    const saved=JSON.parse(localStorage.getItem(storageKey)||'[]');
+    if(Array.isArray(saved)) strokes=saved.filter(s=>s && s.tool==='pen' && Array.isArray(s.points) && s.points.length);
+  } catch(err) { $('saveStatus').textContent='Local storage unavailable'; }
+  const ro=typeof ResizeObserver!=='undefined'?new ResizeObserver(resize):null;
+  if(ro) ro.observe(paper);else window.addEventListener('resize',resize);
+  resize();refresh();
+})();
+</script>
+</body>
+</html>

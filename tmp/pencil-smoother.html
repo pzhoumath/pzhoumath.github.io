@@ -35,7 +35,7 @@
   <fieldset aria-label="Stroke display">
     <label><input type="radio" name="mode" value="raw"><span>Raw</span></label>
     <label><input type="radio" name="mode" value="smooth"><span>Moving average</span></label>
-    <label><input type="radio" name="mode" value="cubic" checked><span>Cubic Bézier</span></label>
+    <label><input type="radio" name="mode" value="cubic" checked><span>Cubic spline</span></label>
   </fieldset>
   <label class="radius">Smoothing <input id="radius" type="range" min="1" max="7" step="0.5" value="3.5"></label>
   <button id="clear" type="button">Clear</button>
@@ -87,104 +87,67 @@ export class PencilSmoother {
   }
 }
 
-// Streaming cubic fit in CSS pixels. The target implements lineTo and bezierCurveTo.
-// Start a path at (x,y), then add samples. drawTail draws only the editable
-// end onto a copy of the target, so a preview never changes committed ink.
+// Cubic uniform B-spline over arc-length bin averages, rendered as Béziers.
+// Move the target path to the start before construction. add() extends its
+// permanent prefix. drawTail() finishes a copy at the latest Pencil position.
+function span(path, b, c, d) {
+  path.bezierCurveTo(
+    (2*b.x + c.x)/3, (2*b.y + c.y)/3,
+    (b.x + 2*c.x)/3, (b.y + 2*c.y)/3,
+    (b.x + 4*c.x + d.x)/6, (b.y + 4*c.y + d.y)/6
+  );
+}
+
 export class CubicBezierFit {
-  constructor(target, x, y, tolerance = 1.8) {
+  constructor(target, x, y, spacing = 3.5) {
     this.target = target;
-    this.tolerance = Math.max(0.05, tolerance);
-    this.points = [{x, y, s: 0}];
-    this.previous = null;
+    this.spacing = Math.max(0.25, spacing);
+    this.b = this.c = {x, y};
+    this.x = x;
+    this.y = y;
+    this.used = this.sumX = this.sumY = 0;
   }
 
   add(x, y) {
-    const p = this.points, last = p[p.length - 1];
-    if (x === last.x && y === last.y) return;
-    p.push({x, y, s: last.s + Math.hypot(x - last.x, y - last.y)});
-    if (p.length === 49) {
-      this.fit(this.target, 0, 40);
-      // Keep lookbehind for estimating the outgoing tangent at this join.
-      this.startTangent = this.tangent(40, 1);
-      this.previous = this.neighbor(40, -1);
-      this.points = p.slice(40);
+    const dx = x - this.x, dy = y - this.y;
+    const length = Math.hypot(dx, dy);
+    if (!length) return;
+
+    // Integrate position along the input segment. Adding more samples on
+    // the same straight segment leaves every bin average unchanged.
+    let offset = 0;
+    while (offset < length) {
+      const room = this.spacing - this.used;
+      const take = Math.min(room, length - offset);
+      const mid = (offset + take / 2) / length;
+      this.sumX += take * (this.x + mid * dx);
+      this.sumY += take * (this.y + mid * dy);
+      this.used += take;
+      offset += take;
+      if (take === room) {
+        const next = {x: this.sumX / this.spacing, y: this.sumY / this.spacing};
+        span(this.target, this.b, this.c, next);
+        this.b = this.c;
+        this.c = next;
+        this.used = this.sumX = this.sumY = 0;
+      }
     }
+    this.x = x;
+    this.y = y;
   }
 
-  neighbor(i, step) {
-    const p = this.points, origin = p[i];
-    const reach = Math.max(5, 3 * this.tolerance);
-    while (i + step >= 0 && i + step < p.length) {
-      i += step;
-      if (Math.abs(origin.s - p[i].s) >= reach) return p[i];
+  drawTail(path) {
+    let b = this.b, c = this.c;
+    if (this.used > 0) {
+      const partial = {x: this.sumX / this.used, y: this.sumY / this.used};
+      span(path, b, c, partial);
+      b = c;
+      c = partial;
     }
-    if (step < 0 && this.previous) return this.previous;
-    return p[i];
-  }
-
-  tangent(i, step) {
-    if (i === 0 && this.startTangent) return this.startTangent;
-    const a = this.neighbor(i, -1), b = this.points[i], c = this.neighbor(i, 1);
-    const ab = Math.hypot(b.x - a.x, b.y - a.y);
-    const bc = Math.hypot(c.x - b.x, c.y - b.y);
-    const ux = ab ? (b.x - a.x) / ab : 0, uy = ab ? (b.y - a.y) / ab : 0;
-    const vx = bc ? (c.x - b.x) / bc : 0, vy = bc ? (c.y - b.y) / bc : 0;
-    if (ab && bc && ux * vx + uy * vy < 0.35) {
-      return step < 0 ? [ux, uy] : [vx, vy];
-    }
-    const length = Math.hypot(ux + vx, uy + vy) || 1;
-    return [(ux + vx) / length, (uy + vy) / length];
-  }
-
-  drawTail(target) {
-    if (this.points.length > 1) this.fit(target, 0, this.points.length - 1);
-  }
-
-  fit(target, first, last) {
-    const p = this.points, a = p[first], b = p[last];
-    const span = b.s - a.s;
-    const [ux, uy] = this.tangent(first, 1), [vx, vy] = this.tangent(last, -1);
-    // The endpoints and tangent directions are fixed. Least squares leaves
-    // just two unknowns, the lengths of the handles on those tangents.
-    let straight = Math.hypot(b.x - a.x, b.y - a.y) > 4 * this.tolerance;
-    let aa = 0, ab = 0, bb = 0, ar = 0, br = 0;
-    for (let i = first + 1; i < last; i++) {
-      const t = (p[i].s - a.s) / span, u = 1 - t;
-      const ex = (p[i].x - a.x) - t * (b.x - a.x);
-      const ey = (p[i].y - a.y) - t * (b.y - a.y);
-      if (ex * ex + ey * ey > this.tolerance ** 2) straight = false;
-      const w = 3 * t * u, f = u * w, g = -t * w;
-      const blend = t * t * (3 - 2 * t);
-      const rx = p[i].x - a.x - blend * (b.x - a.x);
-      const ry = p[i].y - a.y - blend * (b.y - a.y);
-      aa += f * f; ab += f * g * (ux * vx + uy * vy); bb += g * g;
-      ar += f * (rx * ux + ry * uy); br += g * (rx * vx + ry * vy);
-    }
-    // A long, nearly straight run needs no extra bends.
-    if (straight) {
-      target.lineTo(b.x, b.y);
-      return;
-    }
-    const det = aa * bb - ab * ab;
-    const limit = v => Math.max(0, Math.min(span * 0.75, v));
-    const h = det > 1e-8 ? limit((bb * ar - ab * br) / det) : span / 3;
-    const k = det > 1e-8 ? limit((aa * br - ab * ar) / det) : span / 3;
-    const cx = a.x + h * ux, cy = a.y + h * uy;
-    const dx = b.x - k * vx, dy = b.y - k * vy;
-    let split = -1, worst = this.tolerance ** 2;
-    for (let i = first + 1; i < last; i++) {
-      const t = (p[i].s - a.s) / span, u = 1 - t;
-      const x = u*u*u*a.x + 3*t*u*(u*cx + t*dx) + t*t*t*b.x;
-      const y = u*u*u*a.y + 3*t*u*(u*cy + t*dy) + t*t*t*b.y;
-      const error = (x - p[i].x) ** 2 + (y - p[i].y) ** 2;
-      if (error > worst) { worst = error; split = i; }
-    }
-    if (split >= 0) {
-      this.fit(target, first, split);
-      this.fit(target, split, last);
-    } else {
-      target.bezierCurveTo(cx, cy, dx, dy, b.x, b.y);
-    }
+    const tip = {x: this.x, y: this.y};
+    span(path, b, c, tip);
+    span(path, c, tip, tip);
+    span(path, tip, tip, tip);
   }
 }
 
@@ -205,7 +168,7 @@ class StrokePath {
     this.lastY = this.tipY = this.minY = this.maxY = y;
     this.dot = true;
     if (mode === 'cubic') {
-      this.cubic = new CubicBezierFit(this.cubicTarget(this.path), x, y, Number(radius.value) / 1.5);
+      this.cubic = new CubicBezierFit(this.path, x, y, Number(radius.value));
     } else if (mode === 'smooth') {
       this.filter = new PencilSmoother((cx, cy) => {
         this.path.quadraticCurveTo(this.lastX, this.lastY,
@@ -215,20 +178,6 @@ class StrokePath {
       }, Number(radius.value));
       this.filter.begin(x, y);
     }
-  }
-
-  cubicTarget(path) {
-    return {
-      lineTo: (x, y) => path.lineTo(x, y),
-      bezierCurveTo: (cx, cy, dx, dy, x, y) => {
-        // The curve stays in the convex hull of its control points.
-        this.minX = Math.min(this.minX, cx, dx);
-        this.maxX = Math.max(this.maxX, cx, dx);
-        this.minY = Math.min(this.minY, cy, dy);
-        this.maxY = Math.max(this.maxY, cy, dy);
-        path.bezierCurveTo(cx, cy, dx, dy, x, y);
-      }
-    };
   }
 
   add(x, y) {
@@ -252,7 +201,7 @@ class StrokePath {
       ctx.fill();
     } else if (this.cubic) {
       const path = new Path2D(this.path);
-      this.cubic.drawTail(this.cubicTarget(path));
+      this.cubic.drawTail(path);
       ctx.stroke(path);
     } else if (this.filter) {
       const path = new Path2D(this.path);
@@ -336,8 +285,11 @@ function append(event, rect) {
 
 function appendBatch(event) {
   const rect = paper.getBoundingClientRect();
-  for (const sample of event.getCoalescedEvents?.() || []) append(sample, rect);
-  append(event, rect);
+  const samples = event.getCoalescedEvents?.();
+  if (samples?.length) {
+    for (const sample of samples) append(sample, rect);
+  }
+  if (!samples?.length || event.type === 'pointerup') append(event, rect);
 }
 
 paper.onpointerdown = event => {

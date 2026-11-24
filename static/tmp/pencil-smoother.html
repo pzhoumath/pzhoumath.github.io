@@ -23,16 +23,19 @@
     -webkit-user-select: none; -webkit-touch-callout: none; overflow: hidden }
   .radius { display: flex; align-items: center; gap: 6px; font-size: 13px }
   .radius input { width: 85px; accent-color: #274642 }
-  canvas { position: absolute; inset: 0; width: 100%; height: 100% }
+  main canvas { position: absolute; inset: 0; width: 100%; height: 100% }
   #live { pointer-events: none }
-  footer { color: #58625f; font-size: 13px; padding: 7px 14px max(7px,env(safe-area-inset-bottom));
+  .reference { display: inline-flex; align-items: center; gap: 8px }
+  #reference { width: 120px; height: 14px }
+  footer { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 16px; color: #58625f; font-size: 13px; padding: 7px 14px max(7px,env(safe-area-inset-bottom));
     border-top: 1px solid #e6e7e3 }
 </style>
 <header>
   <h1>Pencil smoother</h1>
   <fieldset aria-label="Stroke display">
     <label><input type="radio" name="mode" value="raw"><span>Raw</span></label>
-    <label><input type="radio" name="mode" value="smooth" checked><span>Smooth</span></label>
+    <label><input type="radio" name="mode" value="smooth"><span>Moving average</span></label>
+    <label><input type="radio" name="mode" value="cubic" checked><span>Cubic Bézier</span></label>
   </fieldset>
   <label class="radius">Smoothing <input id="radius" type="range" min="1" max="7" step="0.5" value="3.5"></label>
   <button id="clear" type="button">Clear</button>
@@ -41,7 +44,9 @@
   <canvas aria-label="Pencil strokes"></canvas>
   <canvas id="live" aria-hidden="true"></canvas>
 </main>
-<footer>Write with Pencil or mouse. Switch views to compare the same strokes.</footer>
+<footer>Switch views to compare the same handwriting.
+  <span class="reference">Straight reference <canvas id="reference" aria-hidden="true"></canvas></span>
+</footer>
 <script type="module">
 // Standalone copy of paper-lab/smoother/pencil-smoother.mjs
 // Positions and radius use CSS pixels. emit(x, y) receives centerline vertices.
@@ -82,12 +87,113 @@ export class PencilSmoother {
   }
 }
 
+// Streaming cubic fit in CSS pixels. The target implements lineTo and bezierCurveTo.
+// Start a path at (x,y), then add samples. drawTail draws only the editable
+// end onto a copy of the target, so a preview never changes committed ink.
+export class CubicBezierFit {
+  constructor(target, x, y, tolerance = 1.8) {
+    this.target = target;
+    this.tolerance = Math.max(0.05, tolerance);
+    this.points = [{x, y, s: 0}];
+    this.previous = null;
+  }
+
+  add(x, y) {
+    const p = this.points, last = p[p.length - 1];
+    if (x === last.x && y === last.y) return;
+    p.push({x, y, s: last.s + Math.hypot(x - last.x, y - last.y)});
+    if (p.length === 49) {
+      this.fit(this.target, 0, 40);
+      // Keep lookbehind for estimating the outgoing tangent at this join.
+      this.startTangent = this.tangent(40, 1);
+      this.previous = this.neighbor(40, -1);
+      this.points = p.slice(40);
+    }
+  }
+
+  neighbor(i, step) {
+    const p = this.points, origin = p[i];
+    const reach = Math.max(5, 3 * this.tolerance);
+    while (i + step >= 0 && i + step < p.length) {
+      i += step;
+      if (Math.abs(origin.s - p[i].s) >= reach) return p[i];
+    }
+    if (step < 0 && this.previous) return this.previous;
+    return p[i];
+  }
+
+  tangent(i, step) {
+    if (i === 0 && this.startTangent) return this.startTangent;
+    const a = this.neighbor(i, -1), b = this.points[i], c = this.neighbor(i, 1);
+    const ab = Math.hypot(b.x - a.x, b.y - a.y);
+    const bc = Math.hypot(c.x - b.x, c.y - b.y);
+    const ux = ab ? (b.x - a.x) / ab : 0, uy = ab ? (b.y - a.y) / ab : 0;
+    const vx = bc ? (c.x - b.x) / bc : 0, vy = bc ? (c.y - b.y) / bc : 0;
+    if (ab && bc && ux * vx + uy * vy < 0.35) {
+      return step < 0 ? [ux, uy] : [vx, vy];
+    }
+    const length = Math.hypot(ux + vx, uy + vy) || 1;
+    return [(ux + vx) / length, (uy + vy) / length];
+  }
+
+  drawTail(target) {
+    if (this.points.length > 1) this.fit(target, 0, this.points.length - 1);
+  }
+
+  fit(target, first, last) {
+    const p = this.points, a = p[first], b = p[last];
+    const span = b.s - a.s;
+    const [ux, uy] = this.tangent(first, 1), [vx, vy] = this.tangent(last, -1);
+    // The endpoints and tangent directions are fixed. Least squares leaves
+    // just two unknowns, the lengths of the handles on those tangents.
+    let straight = Math.hypot(b.x - a.x, b.y - a.y) > 4 * this.tolerance;
+    let aa = 0, ab = 0, bb = 0, ar = 0, br = 0;
+    for (let i = first + 1; i < last; i++) {
+      const t = (p[i].s - a.s) / span, u = 1 - t;
+      const ex = (p[i].x - a.x) - t * (b.x - a.x);
+      const ey = (p[i].y - a.y) - t * (b.y - a.y);
+      if (ex * ex + ey * ey > this.tolerance ** 2) straight = false;
+      const w = 3 * t * u, f = u * w, g = -t * w;
+      const blend = t * t * (3 - 2 * t);
+      const rx = p[i].x - a.x - blend * (b.x - a.x);
+      const ry = p[i].y - a.y - blend * (b.y - a.y);
+      aa += f * f; ab += f * g * (ux * vx + uy * vy); bb += g * g;
+      ar += f * (rx * ux + ry * uy); br += g * (rx * vx + ry * vy);
+    }
+    // A long, nearly straight run needs no extra bends.
+    if (straight) {
+      target.lineTo(b.x, b.y);
+      return;
+    }
+    const det = aa * bb - ab * ab;
+    const limit = v => Math.max(0, Math.min(span * 0.75, v));
+    const h = det > 1e-8 ? limit((bb * ar - ab * br) / det) : span / 3;
+    const k = det > 1e-8 ? limit((aa * br - ab * ar) / det) : span / 3;
+    const cx = a.x + h * ux, cy = a.y + h * uy;
+    const dx = b.x - k * vx, dy = b.y - k * vy;
+    let split = -1, worst = this.tolerance ** 2;
+    for (let i = first + 1; i < last; i++) {
+      const t = (p[i].s - a.s) / span, u = 1 - t;
+      const x = u*u*u*a.x + 3*t*u*(u*cx + t*dx) + t*t*t*b.x;
+      const y = u*u*u*a.y + 3*t*u*(u*cy + t*dy) + t*t*t*b.y;
+      const error = (x - p[i].x) ** 2 + (y - p[i].y) ** 2;
+      if (error > worst) { worst = error; split = i; }
+    }
+    if (split >= 0) {
+      this.fit(target, first, split);
+      this.fit(target, split, last);
+    } else {
+      target.bezierCurveTo(cx, cy, dx, dy, b.x, b.y);
+    }
+  }
+}
+
 const paper = document.querySelector('canvas');
 const live = document.querySelector('#live');
 const radius = document.querySelector('#radius');
 const base = paper.getContext('2d'), overlay = live.getContext('2d');
 const strokes = [];
-let active = null, smooth = true, frame = 0, painted = null;
+let active = null, mode = 'cubic', frame = 0, painted = null;
 
 // One continuous path per stroke. Overlapping segment caps would accumulate
 // antialias coverage at every input sample, visibly thickening thin lines.
@@ -98,7 +204,9 @@ class StrokePath {
     this.lastX = this.tipX = this.minX = this.maxX = x;
     this.lastY = this.tipY = this.minY = this.maxY = y;
     this.dot = true;
-    if (smooth) {
+    if (mode === 'cubic') {
+      this.cubic = new CubicBezierFit(this.cubicTarget(this.path), x, y, Number(radius.value) / 1.5);
+    } else if (mode === 'smooth') {
       this.filter = new PencilSmoother((cx, cy) => {
         this.path.quadraticCurveTo(this.lastX, this.lastY,
           (this.lastX + cx) / 2, (this.lastY + cy) / 2);
@@ -107,6 +215,20 @@ class StrokePath {
       }, Number(radius.value));
       this.filter.begin(x, y);
     }
+  }
+
+  cubicTarget(path) {
+    return {
+      lineTo: (x, y) => path.lineTo(x, y),
+      bezierCurveTo: (cx, cy, dx, dy, x, y) => {
+        // The curve stays in the convex hull of its control points.
+        this.minX = Math.min(this.minX, cx, dx);
+        this.maxX = Math.max(this.maxX, cx, dx);
+        this.minY = Math.min(this.minY, cy, dy);
+        this.maxY = Math.max(this.maxY, cy, dy);
+        path.bezierCurveTo(cx, cy, dx, dy, x, y);
+      }
+    };
   }
 
   add(x, y) {
@@ -118,7 +240,8 @@ class StrokePath {
     this.minY = Math.min(this.minY, y);
     this.maxX = Math.max(this.maxX, x);
     this.maxY = Math.max(this.maxY, y);
-    if (this.filter) this.filter.move(x, y);
+    if (this.cubic) this.cubic.add(x, y);
+    else if (this.filter) this.filter.move(x, y);
     else this.path.lineTo(x, y);
   }
 
@@ -127,6 +250,10 @@ class StrokePath {
       ctx.beginPath();
       ctx.arc(this.tipX, this.tipY, ctx.lineWidth / 2, 0, 2 * Math.PI);
       ctx.fill();
+    } else if (this.cubic) {
+      const path = new Path2D(this.path);
+      this.cubic.drawTail(this.cubicTarget(path));
+      ctx.stroke(path);
     } else if (this.filter) {
       const path = new Path2D(this.path);
       path.quadraticCurveTo(this.lastX, this.lastY,
@@ -182,6 +309,21 @@ function resize() {
     ctx.lineWidth = 1.4;
     ctx.lineCap = ctx.lineJoin = 'round';
   }
+  const reference = document.querySelector('#reference');
+  const w = reference.clientWidth, h = reference.clientHeight;
+  if (w && h) {
+    reference.width = Math.round(w * devicePixelRatio);
+    reference.height = Math.round(h * devicePixelRatio);
+    const ctx = reference.getContext('2d');
+    ctx.setTransform(reference.width / w, 0, 0, reference.height / h, 0, 0);
+    ctx.strokeStyle = base.strokeStyle;
+    ctx.lineWidth = base.lineWidth;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(2, h - 3);
+    ctx.lineTo(w - 2, h - 3 - (w - 4) / 20);
+    ctx.stroke();
+  }
   redraw();
 }
 
@@ -223,8 +365,8 @@ function finish(event) {
 }
 paper.onpointerup = paper.onpointercancel = paper.onlostpointercapture = finish;
 document.querySelector('fieldset').onchange = event => {
-  smooth = event.target.value === 'smooth';
-  radius.disabled = !smooth;
+  mode = event.target.value;
+  radius.disabled = mode === 'raw';
   redraw();
 };
 radius.oninput = redraw;
